@@ -67,22 +67,26 @@ body {
   color: var(--noqlen-gold);
 }
 
-.md-header__button.md-logo,
+.md-header__button.md-logo {
+  display: none;
+}
+
 .md-nav__button.md-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  margin: 0 0.15rem 0 0;
-  padding: 0.35rem;
+  width: min(11rem, 100%);
+  height: 3.2rem;
+  margin: 0;
+  padding: 0;
 }
 
-.md-header__button.md-logo img,
 .md-nav__button.md-logo img {
   display: block;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 100%;
+  max-width: 10.5rem;
+  height: 100%;
+  max-height: 3.2rem;
   object-fit: contain;
 }
 
@@ -211,16 +215,15 @@ body {
 .md-nav--primary > .md-nav__title {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  min-height: 4.1rem;
+  min-height: 5.2rem;
   margin: -0.5rem -0.5rem 0.5rem;
-  padding: 1.05rem 0.85rem 0.85rem;
+  padding: 1.1rem 1rem 1rem;
   border-bottom: 1px solid rgba(240, 201, 135, 0.14);
   background:
     radial-gradient(circle at 0 0, rgba(240, 201, 135, 0.15), transparent 10rem),
     linear-gradient(180deg, rgba(23, 22, 19, 0.86), rgba(9, 9, 11, 0.82));
   color: var(--noqlen-text-bright);
-  font-size: 1rem;
+  font-size: 0;
   font-weight: 760;
   letter-spacing: -0.035em;
 }
@@ -375,9 +378,9 @@ body {
   position: relative;
   z-index: 1;
   display: block;
-  width: clamp(4.75rem, 10vw, 7rem);
+  width: clamp(8.5rem, 22vw, 12rem);
   height: auto;
-  margin: 0 0 1.35rem;
+  margin: 0 auto 1.6rem;
 }
 
 .noqlen-hero h1 {
@@ -537,21 +540,21 @@ body {
   }
 
   .md-nav--primary > .md-nav__title {
-    min-height: 3.9rem;
-    padding: 0.85rem 0.8rem;
+    min-height: 5rem;
+    padding: 1rem 0.9rem;
   }
 
   .md-nav--primary > .md-nav__title .md-nav__button.md-logo {
-    flex: 0 0 2rem;
-    width: 2rem;
-    height: 2rem;
+    flex: 0 1 10.5rem;
+    width: min(10.5rem, 100%);
+    height: 3rem;
     margin: 0;
-    padding: 0.3rem;
+    padding: 0;
   }
 
   .md-nav--primary > .md-nav__title .md-nav__button.md-logo img {
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 100%;
+    height: 100%;
   }
 
   .md-nav__list {
@@ -594,9 +597,9 @@ body {
   }
 
   .noqlen-hero-logo {
-    width: 4.25rem;
-    max-width: 24vw;
-    margin-bottom: 0.85rem;
+    width: 7.5rem;
+    max-width: 48vw;
+    margin-bottom: 1rem;
   }
 
   .noqlen-hero h1 {
