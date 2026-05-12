@@ -5,7 +5,9 @@ docs_dir: docs_site
 
 theme:
   name: material
+  custom_dir: docs_site/overrides
   language: en
+  logo: assets/brand/noqlen_website_logo_notext.png
   palette:
     scheme: slate
     primary: black

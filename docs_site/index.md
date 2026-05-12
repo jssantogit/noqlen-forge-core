@@ -1,5 +1,5 @@
 <section class="noqlen-hero">
-<img class="noqlen-hero-logo" src="assets/images/noqlen-logo.png" alt="Noqlen">
+<img class="noqlen-hero-logo" src="assets/brand/noqlen_website_logo_notext.png" alt="Noqlen logo">
 
 <h1>Local music-library workflows, controlled by you</h1>
 

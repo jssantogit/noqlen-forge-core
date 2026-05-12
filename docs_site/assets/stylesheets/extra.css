@@ -69,7 +69,21 @@ body {
 
 .md-header__button.md-logo,
 .md-nav__button.md-logo {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: 0 0.15rem 0 0;
+  padding: 0.35rem;
+}
+
+.md-header__button.md-logo img,
+.md-nav__button.md-logo img {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
 }
 
 .md-header__title {
@@ -195,6 +209,9 @@ body {
 }
 
 .md-nav--primary > .md-nav__title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   min-height: 4.1rem;
   margin: -0.5rem -0.5rem 0.5rem;
   padding: 1.05rem 0.85rem 0.85rem;
@@ -358,7 +375,7 @@ body {
   position: relative;
   z-index: 1;
   display: block;
-  width: min(16.5rem, 70vw);
+  width: clamp(4.75rem, 10vw, 7rem);
   height: auto;
   margin: 0 0 1.35rem;
 }
@@ -519,6 +536,24 @@ body {
     font-size: 1rem;
   }
 
+  .md-nav--primary > .md-nav__title {
+    min-height: 3.9rem;
+    padding: 0.85rem 0.8rem;
+  }
+
+  .md-nav--primary > .md-nav__title .md-nav__button.md-logo {
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
+    margin: 0;
+    padding: 0.3rem;
+  }
+
+  .md-nav--primary > .md-nav__title .md-nav__button.md-logo img {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
   .md-nav__list {
     padding: 0.45rem;
   }
@@ -559,8 +594,9 @@ body {
   }
 
   .noqlen-hero-logo {
-    width: min(11rem, 66vw);
-    margin-bottom: 1rem;
+    width: 4.25rem;
+    max-width: 24vw;
+    margin-bottom: 0.85rem;
   }
 
   .noqlen-hero h1 {
