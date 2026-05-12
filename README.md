@@ -55,19 +55,45 @@ Developer and reference docs:
 - [Audio key detection reference](docs/reference/audio-key-detection.md)
 - [Technical lineage and integrations](docs/reference/integrations-and-lineage.md)
 
-## Install For Local Use
+## Installation
+
+Noqlen Forge Core is currently installed from source. PyPI installation will be documented after the first package publication. Do not use `python -m pip install noqlen-forge` until the package is published to PyPI.
+
+Local source install:
 
 ```bash
-python3 -m pip install -e .
+git clone https://github.com/<owner>/noqlen-forge-core.git
+cd noqlen-forge-core
+python -m pip install -e .
+noqlen-forge --help
 ```
+
+Private GitHub SSH install for users with repository access:
+
+```bash
+python -m pip install "git+ssh://git@github.com/<owner>/noqlen-forge-core.git"
+```
+
+Public GitHub HTTPS install after the repository is public:
+
+```bash
+python -m pip install "git+https://github.com/<owner>/noqlen-forge-core.git"
+```
+
+Post-install validation:
+
+```bash
+noqlen-forge --help
+noqlen-forge dev check --smoke
+```
+
+Smoke checks are safe validation commands and should not touch a real music library. Do not run real-library workflows during installation validation. For real operations, review dry-run output first and use `--apply` only when you intend to write changes. Keep real credentials in environment variables, not in config files, examples, docs, or commits.
 
 Create a default config with:
 
 ```bash
 noqlen-forge config init
 ```
-
-Keep real credentials in environment variables, not in config files or docs.
 
 ## Development Setup
 
