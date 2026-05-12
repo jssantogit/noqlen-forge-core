@@ -28,6 +28,8 @@ The README is a quick landing page for new visitors. Deeper usage, configuration
 - Source and GitHub installation are the supported install paths for now.
 - PyPI installation is not available yet.
 - Real-library use should begin with dry-run output and careful review.
+- Essentia is not a dependency or supported backend.
+- Low-confidence key estimates are not written automatically.
 - Noqlen Flux, Anchor, Core, and Aria are future ecosystem work, not current dependencies.
 
 ## Installation From Source
