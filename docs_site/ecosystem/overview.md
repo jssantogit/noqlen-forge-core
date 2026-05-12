@@ -4,7 +4,7 @@ Noqlen is the ecosystem name for local music-library workflows. The goal is cont
 
 ## Current Public Component
 
-**Noqlen Forge Core** is the current public component and the main documented product area. It focuses on metadata, library management, reports, review, playlists, ratings, and Navidrome-oriented workflows.
+Noqlen Forge Core is the current public component and the main documented product area. It focuses on metadata, library management, reports, review, playlists, ratings, and Navidrome-oriented workflows.
 
 ## Planned Context
 
