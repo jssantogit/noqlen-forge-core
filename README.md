@@ -52,6 +52,8 @@ User guides:
 
 Developer and reference docs:
 
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
 - [Developer docs](docs/development/)
 - [Testing and MusicLab](docs/development/testing-and-musiclab.md)
 - [CLI reference](docs/reference/cli-reference.md)
