@@ -19,6 +19,7 @@ This documentation is split by audience so users can start safely without readin
 - [Structured results](development/structured-results.md): workflow result schema and machine-readable output guidance.
 - [Audio key detection](development/audio-key-detection.md): backend registry and native key detection implementation notes.
 - [Testing and MusicLab](development/testing-and-musiclab.md): validation pyramid, docs-only checks, and isolated MusicLab rules.
+- [First public release checklist](release/first-public-release-checklist.md): review checklist before public visibility or package publication planning.
 
 ## Reference Docs
 
