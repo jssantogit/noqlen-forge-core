@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+set -eu
+
+noqlen-forge dev check --quick

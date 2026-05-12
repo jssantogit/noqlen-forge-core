@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noqlen-forge"
+version = "0.1.0"
+description = "Noqlen Forge Core metadata and library-management workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["mutagen>=1.46", "rich>=13"]
+keywords = ["audio", "metadata", "music", "musicbrainz", "navidrome", "noqlen"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Utilities",
+]
+
+[project.optional-dependencies]
+dev = ["build>=1", "pytest>=7"]
+
+[project.scripts]
+noqlen-forge = "noqlen_forge.cli:main"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["noqlen_forge*"]

@@ -1,0 +1,377 @@
+# Global Noqlen Forge Core configuration example. Copy values into
+# ~/.config/noqlen-forge/config.toml or run: noqlen-forge config init
+# then edit only the sections you need. Leave secrets empty here and prefer
+# environment variables for real credentials.
+
+# Library paths and organization template. Empty paths mean commands require an
+# explicit CLI path/--library instead of assuming a real music library.
+[library]
+root = ""
+incoming = ""
+template = "{genre}/{albumartist}/{album}/{track:02d} {title}"
+
+# Native SQLite library database. An empty path uses
+# $XDG_DATA_HOME/noqlen-forge/library.db, or ~/.local/share/noqlen-forge/library.db
+# when XDG_DATA_HOME is not set. The database stores library state and workflow
+# history; it does not replace file tags. db scan is dry-run by default;
+# db scan --apply updates SQLite rows, not tags.
+[database]
+path = ""
+auto_scan = false
+track_provider_history = true
+track_tag_sync = true
+
+# Defaults used by noqlen-forge enrich --full when no overriding CLI flag is passed.
+# Optional slow or write-sensitive stages stay explicit unless intentionally
+# enabled here or requested with CLI flags.
+[enrich]
+full_includes_cover = false
+full_includes_lyrics = false
+full_includes_key = false
+full_includes_lastfm = true
+full_includes_mood = true
+full_includes_bpm = true
+full_includes_features = true
+full_includes_acoustid_identification = true
+full_includes_acoustid = true
+full_includes_cleanup = true
+full_includes_metadata_providers = true
+full_includes_replaygain = false
+
+# Safe metadata behavior. Dry-run remains the default for write-capable
+# commands; --apply is still required before writing tags or SQLite rows.
+[metadata]
+prefer_original_date = true
+clean_bad_fields = true
+write_mbids = true
+
+# Native metadata providers. MusicBrainz remains identity authority; Discogs is
+# catalog enrichment; iTunes and Deezer are disabled fallback providers;
+# AcoustID Identify uses fpcalc/Chromaprint as a native identifier backend.
+[metadata_providers]
+enabled = true
+sources = ["musicbrainz", "discogs"]
+max_active = 2
+min_confidence = "medium"
+allow_more_providers = false
+
+[metadata_providers.musicbrainz]
+enabled = true
+role = "identity"
+
+[metadata_providers.discogs]
+enabled = true
+role = "catalog"
+token = ""
+use_for_genre = true
+use_for_style = true
+use_for_label = true
+use_for_catalog_number = true
+use_for_barcode = true
+use_for_country = true
+use_for_format = true
+use_for_release_type = true
+
+[metadata_providers.deezer]
+enabled = false
+role = "fallback"
+use_for_genre = true
+use_for_label = false
+use_for_date = true
+use_for_tracklist = true
+use_for_duration = true
+use_for_cover = true
+
+[metadata_providers.itunes]
+enabled = false
+role = "fallback"
+storefront = "us"
+use_for_genre = true
+use_for_date = true
+use_for_tracklist = true
+use_for_duration = true
+use_for_cover = true
+use_for_explicit = true
+
+[metadata_providers.acoustid]
+enabled = true
+role = "identifier"
+write_fingerprint = true
+write_acoustid = true
+use_for_identity = true
+min_score = 0.80
+max_candidates = 5
+
+# Cover providers are tried in source order. Existing valid art is protected by
+# command force/overwrite rules; dry-run remains the default.
+[cover]
+enabled = true
+embed = true
+save_folder_cover = false
+filename = "cover"
+sources = ["local", "musicbrainz", "itunes", "deezer"]
+min_confidence = "medium"
+prefer_front = true
+max_size_mb = 10
+
+# Lyrics providers are local-first by default, then LRCLIB. Full lyrics are not
+# printed in normal output. Existing lyrics are preserved unless force/overwrite
+# is explicit, and conflicts become REVIEW.
+[lyrics]
+enabled = true
+providers = ["embedded", "sidecar", "lrclib"]
+sources = ["lrclib"]
+prefer_synced = true
+allow_unsynced = true
+prefer_local = true
+prefer_existing = true
+embed_lyrics = true
+embed = true
+write_sidecar_lrc = false
+save_lrc = true
+save_txt = false
+min_confidence = "medium"
+cache_enabled = true
+fallback_on_not_found = true
+fallback_on_low_confidence = true
+fallback_on_instrumental = false
+review_on_conflict = true
+review_on_existing_mismatch = true
+allow_instrumental = false
+allow_empty = false
+overwrite_existing = false
+overwrite = false
+
+[lyrics.selection]
+synced_bonus = 10
+local_bonus = 8
+existing_bonus = 12
+duration_tolerance_seconds = 3.0
+conflict_similarity_threshold = 0.75
+
+[lyrics.online]
+enabled = true
+timeout_seconds = 20
+max_results = 5
+rate_limit_seconds = 1.0
+user_agent = "noqlen-forge"
+
+# Optional custom HTTP JSON lyrics endpoint. Disabled by default; put the secret
+# in the api_key_env environment variable, not in this file.
+[lyrics.provider_settings.custom_http]
+enabled = false
+base_url = ""
+api_key_env = "NOQLEN_FORGE_LYRICS_API_KEY"
+supports_synced = true
+supports_unsynced = true
+
+# Local job history/progress records. Execution may still be synchronous.
+# Cancellation/resume are cooperative; prune commands should be reviewed in
+# dry-run before --apply.
+[jobs]
+enabled = true
+history_days = 30
+prune_completed = true
+prune_failed = false
+default_resumable = false
+
+# Native audio analysis. ReplayGain uses ffmpeg by default and is skipped from
+# enrich --full unless explicitly enabled/requested because it can be slow.
+[audio]
+replaygain_enabled = true
+replaygain_backend = "ffmpeg"
+target_lufs = -18.0
+write_track_gain = true
+write_track_peak = true
+write_album_gain = true
+write_album_peak = true
+write_loudness = true
+skip_existing = true
+
+# Optional native key detection. Missing Key is WARN-level optional metadata,
+# not a critical failure. Supported backends are auto, portable_basic, and
+# disabled. portable_basic is native/lightweight, approximate, and may use
+# ffmpeg for bounded local decoding.
+[audio.key_detection]
+# Enable config-driven key stages. Explicit CLI --key can still request analysis.
+enabled = false
+# auto tries the ordered backends list; portable_basic runs bounded local
+# analysis; disabled skips analysis.
+backend = "auto"
+backends = ["portable_basic"]
+min_confidence = "medium"
+# Do not write low-confidence estimates automatically.
+write_low_confidence = false
+fail_on_error = false
+
+[audio.key_detection.portable_basic]
+# Bounds for the native lightweight backend.
+sample_rate = 11025
+max_seconds = 90
+segment_seconds = 10
+segments = 6
+timeout_seconds = 30
+
+# Import prepares incoming files by auditing/enriching/copying into a library.
+# Dry-run is the default; --apply is required before tag writes, DB writes,
+# copying, moving, or source cleanup. Empty library_path requires --library.
+[import]
+enabled = true
+library_path = ""
+mode = "copy"
+run_enrich = true
+run_cover = true
+run_lyrics = true
+run_replaygain = false
+run_organize = true
+audit_before = true
+audit_after = true
+stop_on_review = true
+stop_on_fail = true
+auto_scan_db = true
+delete_source_empty_dirs = false
+
+# Organize plans final library paths and copies by default. It never overwrites
+# existing destinations; use MusicLab for apply validation, not a real library.
+[organize]
+enabled = true
+library_path = ""
+mode = "copy"
+template = "$genre/$albumartist/$album/$track $title"
+singleton_template = "$genre/$artist/Singles/$title"
+compilation_template = "Compilations/$album/$track $title"
+conflict_policy = "review"
+delete_empty_dirs = false
+ascii_paths = false
+max_filename_length = 180
+
+# Database/tag sync is dry-run by default at the command layer. Identity fields
+# are protected and empty DB values do not erase good tags by default.
+[sync]
+enabled = true
+default_direction = "tags-to-db"
+conflict_policy = "review"
+write_empty_fields = false
+protect_identity_fields = true
+auto_scan_before_sync = true
+auto_audit_after_sync = true
+
+# Configurable metadata rewrite rules. Dry-run remains the default; protected
+# identity fields are not rewritten unless explicitly selected and forced.
+[rewrite]
+enabled = true
+case_sensitive = false
+apply_to_db = true
+apply_to_tags = true
+dry_run_by_default = true
+
+[rewrite.artist]
+"New Jeans" = "NewJeans"
+
+[rewrite.albumartist]
+"New Jeans" = "NewJeans"
+
+[rewrite.genre]
+kpop = "K-pop"
+"k-pop" = "K-pop"
+"pop korean" = "K-pop"
+
+[rewrite.style]
+"Prog Metal" = "Progressive Metal"
+"technical death" = "Technical Death Metal"
+
+[rewrite.label]
+"Season of Mist" = "Season Of Mist"
+
+[rewrite.multi_value]
+separator = "; "
+trim_values = true
+dedupe_values = true
+
+# Advanced maintenance is database/report focused and dry-run first. It must not
+# delete music files, move/copy files, or write tags in this stage.
+[repair]
+enabled = true
+dry_run_by_default = true
+missing_files_action = "mark-missing"
+untracked_action = "scan"
+duplicates_action = "review"
+db_orphans_action = "mark-stale"
+allow_delete_records = false
+
+# Duplicate detection is report/review only in this cycle.
+[duplicates]
+enabled = true
+default_scope = "tracks"
+default_strategy = "safe"
+min_duration_delta = 2.0
+same_album_only = false
+include_path_duplicates = true
+include_mbids = true
+include_acoustid = true
+include_title_artist_duration = true
+
+# Report defaults. Reports are read-only and should not expose lyrics,
+# fingerprints, secrets, or raw provider payloads.
+[reports]
+missing_enabled = true
+untracked_enabled = true
+default_missing_fields = ["cover", "lyrics", "synced_lyrics", "key", "replaygain", "bpm", "mood", "style", "label", "originaldate", "mb_album_id", "mb_track_id"]
+hide_optional_by_default = false
+
+# Smart playlist definitions live in SQLite and are recalculated at export time.
+# There is no global playlist config section today: use CLI flags such as
+# --format, --path-mode, --library-root, --output, --force, and --apply.
+
+# Audit display controls for optional advanced metadata fields.
+[audit]
+show_catalog_fields = false
+show_advanced_fields = false
+
+# Terminal output defaults. Debug output must still avoid secrets, full lyrics,
+# full fingerprints, and raw provider payloads.
+[output]
+progress = true
+color = true
+verbose = false
+debug = false
+
+# Optional API keys. Prefer environment variables for real secrets. AcoustID
+# lookup is native and uses fpcalc/Chromaprint for fingerprinting when configured.
+# LASTFM_API_KEY wins over lastfm_api_key.
+# ACOUSTID_KEY or ACOUSTID_API_KEY wins over acoustid_api_key.
+# DISCOGS_TOKEN wins over Discogs token config.
+[apis]
+lastfm_api_key = ""
+acoustid_api_key = ""
+discogs_token = ""
+deezer_api_key = ""
+itunes_storefront = "us"
+spotify_client_id = ""
+spotify_client_secret = ""
+genius_access_token = ""
+musixmatch_api_key = ""
+audd_api_key = ""
+
+# Optional Navidrome/Subsonic API integration. Disabled by default. Prefer
+# NOQLEN_FORGE_NAVIDROME_PASSWORD, NOQLEN_FORGE_NAVIDROME_TOKEN, and
+# NOQLEN_FORGE_NAVIDROME_SALT for secrets. Backup/diff/export are read-oriented;
+# restore and playlist push are dry-run by default and require --apply before
+# writing to the Navidrome API. Keep verify_ssl=true unless you explicitly trust
+# the server/network.
+[navidrome]
+enabled = false
+base_url = ""
+username = ""
+password = ""
+token = ""
+salt = ""
+client_name = "noqlen-forge"
+api_version = "1.16.1"
+auth = "password"
+timeout_seconds = 20
+verify_ssl = true
+
+# Technical local audio backend. Native AcoustID Identify uses fpcalc/Chromaprint.
+[tools]
+fpcalc = "fpcalc"
