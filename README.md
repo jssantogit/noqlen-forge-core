@@ -43,6 +43,7 @@ Start with the documentation index: [docs/README.md](docs/README.md).
 
 User guides:
 
+- [Public roadmap](docs/project/roadmap.md)
 - [Getting started and real-world usage](docs/usage/real-world-guide.md)
 - [Configuration guide](docs/usage/configuration-guide.md)
 - [Native flow overview](docs/usage/native-flow.md)
