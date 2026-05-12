@@ -126,7 +126,7 @@ jobs:
               ".music" + "meta",
           ]
           pattern = "|".join(terms)
-          result = subprocess.run(["rg", "-n", pattern, "."], text=True, capture_output=True)
+          result = subprocess.run(["git", "grep", "-n", "-E", pattern, "--", "."], text=True, capture_output=True)
           if result.returncode == 0:
               print(result.stdout)
               sys.exit("Forbidden legacy reference found")
@@ -164,7 +164,7 @@ jobs:
               "raw " + "fingerprint",
           ]
           pattern = "|".join(terms)
-          result = subprocess.run(["rg", "-n", pattern, *paths], text=True, capture_output=True)
+          result = subprocess.run(["git", "grep", "-n", "-E", pattern, "--", *paths], text=True, capture_output=True)
           if result.returncode not in (0, 1):
               print(result.stderr, file=sys.stderr)
               sys.exit(result.returncode)
