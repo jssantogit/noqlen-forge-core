@@ -1,14 +1,17 @@
+/* Theme tokens */
 :root {
-  --noqlen-bg: #08090b;
-  --noqlen-bg-soft: #0d0f13;
-  --noqlen-surface: #111318;
-  --noqlen-surface-soft: #171a21;
+  --noqlen-bg: #050506;
+  --noqlen-bg-soft: #09090b;
+  --noqlen-surface: #111113;
+  --noqlen-surface-soft: #171613;
+  --noqlen-elevated: rgba(255, 255, 255, 0.045);
   --noqlen-text: #f0eee8;
+  --noqlen-text-bright: #f5f1ea;
   --noqlen-muted: #b9b3a7;
   --noqlen-muted-soft: #8d877d;
-  --noqlen-line: rgba(231, 203, 144, 0.18);
-  --noqlen-gold: #e7cb90;
-  --noqlen-gold-soft: #c6a96a;
+  --noqlen-line: rgba(240, 201, 135, 0.16);
+  --noqlen-gold: #f0c987;
+  --noqlen-gold-soft: #d6a35f;
   --noqlen-radius: 24px;
 }
 
@@ -17,7 +20,7 @@
   --md-default-fg-color: var(--noqlen-text);
   --md-default-fg-color--light: var(--noqlen-muted);
   --md-default-fg-color--lighter: var(--noqlen-muted-soft);
-  --md-primary-fg-color: #090a0d;
+  --md-primary-fg-color: var(--noqlen-bg-soft);
   --md-accent-fg-color: var(--noqlen-gold);
   --md-typeset-a-color: var(--noqlen-gold);
   --md-code-bg-color: #14171d;
@@ -26,25 +29,28 @@
 
 body {
   background:
-    radial-gradient(circle at 18% -8%, rgba(231, 203, 144, 0.08), transparent 28rem),
+    radial-gradient(circle at 18% -8%, rgba(240, 201, 135, 0.08), transparent 28rem),
     linear-gradient(180deg, #0b0c10 0, var(--noqlen-bg) 24rem);
 }
 
+/* Header/search */
 .md-header,
 .md-tabs {
   background:
-    linear-gradient(180deg, rgba(13, 15, 19, 0.98), rgba(8, 9, 11, 0.94));
-  border-bottom: 1px solid rgba(231, 203, 144, 0.12);
-  box-shadow: none;
+    radial-gradient(circle at 9% 0, rgba(240, 201, 135, 0.1), transparent 23rem),
+    linear-gradient(180deg, rgba(17, 17, 19, 0.98), rgba(5, 5, 6, 0.96));
+  border-bottom: 1px solid rgba(240, 201, 135, 0.15);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(16px);
 }
 
 .md-header {
-  min-height: 3rem;
+  min-height: 3.2rem;
 }
 
 .md-header__inner {
-  min-height: 3rem;
+  min-height: 3.2rem;
+  gap: 0.35rem;
 }
 
 .md-header__button.md-icon {
@@ -62,33 +68,58 @@ body {
 
 .md-header__title {
   margin-left: 0.4rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  color: var(--noqlen-text-bright);
+  font-weight: 760;
+  letter-spacing: -0.035em;
 }
 
 .md-header__topic:first-child {
-  color: var(--noqlen-text);
+  color: var(--noqlen-text-bright);
 }
 
 .md-header__topic:last-child {
   color: var(--noqlen-muted);
 }
 
+.md-header__source {
+  margin-left: 0.7rem;
+}
+
+.md-search {
+  margin-right: 0.2rem;
+}
+
 .md-search__form {
-  border: 1px solid rgba(231, 203, 144, 0.12);
+  height: 2.15rem;
+  border: 1px solid rgba(240, 201, 135, 0.15);
   border-radius: 999px;
-  background-color: rgba(17, 19, 24, 0.74);
+  background-color: rgba(17, 17, 19, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .md-search__form:hover,
 .md-search__form:focus-within {
-  border-color: rgba(231, 203, 144, 0.26);
-  background-color: rgba(23, 26, 33, 0.92);
+  border-color: rgba(240, 201, 135, 0.34);
+  background-color: rgba(23, 22, 19, 0.94);
+  box-shadow: 0 0 0 3px rgba(240, 201, 135, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.md-search__icon,
+.md-search__input {
+  color: var(--noqlen-muted);
 }
 
 .md-search__input,
 .md-search__input::placeholder {
   color: var(--noqlen-muted);
+}
+
+.md-search__output {
+  border: 1px solid rgba(240, 201, 135, 0.14);
+  border-radius: 18px;
+  background: rgba(9, 9, 11, 0.98);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
 }
 
 .md-tabs {
@@ -108,15 +139,15 @@ body {
 }
 
 .md-source {
-  border: 1px solid rgba(231, 203, 144, 0.16);
+  border: 1px solid rgba(240, 201, 135, 0.16);
   border-radius: 999px;
-  background: rgba(231, 203, 144, 0.05);
+  background: rgba(240, 201, 135, 0.05);
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 
 .md-source:hover {
-  border-color: rgba(231, 203, 144, 0.38);
-  background: rgba(231, 203, 144, 0.08);
+  border-color: rgba(240, 201, 135, 0.38);
+  background: rgba(240, 201, 135, 0.08);
 }
 
 .md-main__inner {
@@ -131,49 +162,106 @@ body {
   height: 0;
 }
 
+/* Navigation drawer/sidebar */
+.md-sidebar {
+  color: var(--noqlen-muted);
+}
+
 .md-sidebar--secondary .md-sidebar__inner {
-  border-left: 1px solid rgba(231, 203, 144, 0.08);
+  border-left: 1px solid rgba(240, 201, 135, 0.08);
+  opacity: 0.82;
 }
 
 .md-sidebar--primary .md-sidebar__scrollwrap {
   background:
-    linear-gradient(180deg, rgba(13, 15, 19, 0.98), rgba(8, 9, 11, 0.98));
+    radial-gradient(circle at 8% 0, rgba(240, 201, 135, 0.1), transparent 13rem),
+    linear-gradient(180deg, rgba(17, 17, 19, 0.99), rgba(9, 9, 11, 0.99));
 }
 
 .md-drawer {
-  background-color: rgba(8, 9, 11, 0.72);
+  background-color: rgba(5, 5, 6, 0.72);
 }
 
 .md-drawer .md-sidebar__scrollwrap {
-  border-right: 1px solid rgba(231, 203, 144, 0.12);
+  border-right: 1px solid rgba(240, 201, 135, 0.16);
+  box-shadow: 22px 0 70px rgba(0, 0, 0, 0.34);
 }
 
+.md-nav--primary {
+  padding: 0.5rem;
+}
+
+.md-nav--primary > .md-nav__title {
+  min-height: 4.1rem;
+  margin: -0.5rem -0.5rem 0.5rem;
+  padding: 1.05rem 0.85rem 0.85rem;
+  border-bottom: 1px solid rgba(240, 201, 135, 0.14);
+  background:
+    radial-gradient(circle at 0 0, rgba(240, 201, 135, 0.15), transparent 10rem),
+    linear-gradient(180deg, rgba(23, 22, 19, 0.86), rgba(9, 9, 11, 0.82));
+  color: var(--noqlen-text-bright);
+  font-size: 1rem;
+  font-weight: 760;
+  letter-spacing: -0.035em;
+}
+
+.md-nav__source {
+  margin: 0 0 0.65rem;
+  padding: 0;
+  background: transparent;
+}
+
+.md-nav__source .md-source {
+  border-radius: 16px;
+  opacity: 0.76;
+}
+
+.md-nav__source .md-source__icon {
+  opacity: 0.62;
+}
+
+/* Links/active states */
 .md-nav__link {
-  border-radius: 12px;
+  margin-top: 0.08rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 0.5rem 0.6rem;
   color: var(--noqlen-muted);
-  transition: background 150ms ease, color 150ms ease;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
 }
 
-.md-nav__link:is(:focus, :hover),
-.md-nav__link--active {
-  background: rgba(231, 203, 144, 0.055);
+.md-nav__link:is(:focus, :hover) {
+  border-color: rgba(240, 201, 135, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--noqlen-text-bright);
+}
+
+.md-nav__link--active,
+.md-nav__item--active > .md-nav__link,
+.md-nav__item--active > .md-nav__container > .md-nav__link {
+  border-color: rgba(240, 201, 135, 0.22);
+  background:
+    linear-gradient(135deg, rgba(240, 201, 135, 0.16), rgba(240, 201, 135, 0.055));
   color: var(--noqlen-gold);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .md-nav__title {
-  border-bottom: 1px solid rgba(231, 203, 144, 0.12);
+  border-bottom: 1px solid rgba(240, 201, 135, 0.12);
   background:
-    radial-gradient(circle at 0 0, rgba(231, 203, 144, 0.12), transparent 12rem),
+    radial-gradient(circle at 0 0, rgba(240, 201, 135, 0.12), transparent 12rem),
     var(--noqlen-bg-soft);
-  color: var(--noqlen-text);
+  color: var(--noqlen-text-bright);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .md-nav__item--section > .md-nav__link,
 .md-nav__item--section > .md-nav__container > .md-nav__link {
-  color: var(--noqlen-text);
+  margin-top: 0.32rem;
+  color: var(--noqlen-text-bright);
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .md-nav__item--nested > .md-nav__link .md-nav__icon,
@@ -181,6 +269,22 @@ body {
   color: var(--noqlen-gold-soft);
 }
 
+.md-nav--secondary .md-nav__title,
+.md-nav--secondary .md-nav__link {
+  font-size: 0.68rem;
+}
+
+.md-nav--secondary .md-nav__link--active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.md-typeset a {
+  color: var(--noqlen-gold);
+}
+
+/* Content accents */
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3 {
@@ -374,6 +478,7 @@ body {
   color: var(--noqlen-gold);
 }
 
+/* Footer */
 .md-footer {
   border-top: 1px solid rgba(231, 203, 144, 0.12);
   background:
@@ -393,6 +498,7 @@ body {
   font-size: 0.72rem;
 }
 
+/* Responsive adjustments */
 @media screen and (max-width: 44.9375em) {
   .md-header,
   .md-header__inner {
