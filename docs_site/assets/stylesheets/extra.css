@@ -61,7 +61,14 @@
   display: block;
   width: min(18rem, 78vw);
   height: auto;
-  margin: 0 0 1.6rem;
+  margin: 0 0 1.2rem;
+}
+
+.noqlen-hero h1 {
+  max-width: 45rem;
+  margin: 0 0 0.9rem;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1.05;
 }
 
 .noqlen-hero p:not(.eyebrow):not(.hero-actions) {
@@ -131,8 +138,19 @@
 }
 
 @media screen and (max-width: 44.9375em) {
+  .noqlen-hero {
+    margin-top: 0.8rem;
+    padding: 1.2rem;
+    border-radius: 22px;
+  }
+
   .noqlen-hero-logo {
-    width: min(14rem, 72vw);
-    margin-bottom: 1.2rem;
+    width: min(12.5rem, 68vw);
+    margin-bottom: 1rem;
+  }
+
+  .hero-actions a {
+    justify-content: center;
+    flex: 1 1 10rem;
   }
 }
