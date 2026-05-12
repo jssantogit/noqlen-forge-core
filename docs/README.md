@@ -5,7 +5,7 @@ This documentation is split by audience so users can start safely without readin
 ## User Docs
 
 - [Public roadmap](project/roadmap.md): current Forge focus, later Noqlen ecosystem direction, and safety principles.
-- [Installation](../README.md#installation): source install, GitHub direct install, PyPI availability note, and safe smoke validation.
+- [Installation from source](../README.md#installation-from-source): source install, PyPI availability note, and safe smoke validation.
 - [Real-world usage guide](usage/real-world-guide.md): safe dry-run-first workflows for a local music library.
 - [Configuration guide](usage/configuration-guide.md): config locations, safe defaults, providers, Navidrome, playlists, jobs, and troubleshooting.
 - [Native flow overview](usage/native-flow.md): native Noqlen Forge Core capabilities, safety model, and historical workflow context.
