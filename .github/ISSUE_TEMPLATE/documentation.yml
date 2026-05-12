@@ -1,0 +1,36 @@
+name: Documentation issue
+description: Report confusing, missing, or incorrect documentation.
+title: "Docs: "
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for README, docs, or documentation site issues. Do not paste private paths, secrets, full lyrics, raw fingerprints, or private library dumps.
+  - type: input
+    id: page
+    attributes:
+      label: Page or file affected
+      placeholder: "Example: README.md, docs_site/forge/installation.md, documentation homepage"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is confusing, missing, or incorrect?
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Suggested improvement
+      description: Describe the smallest useful docs change.
+  - type: checkboxes
+    id: affected_area
+    attributes:
+      label: Documentation area
+      options:
+        - label: README
+        - label: Published documentation site
+        - label: Repository docs
+        - label: CLI/reference text

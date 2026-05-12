@@ -1,0 +1,87 @@
+name: Bug report
+description: Report a reproducible Noqlen Forge Core problem with sanitized details.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Keep reports safe and sanitized.
+
+        Do not include secrets, tokens, API keys, real local paths, private library dumps, full lyrics, raw fingerprints, copyrighted metadata dumps, or personal/private data.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Short description
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Noqlen Forge Core to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command used
+      description: Paste the command with private paths replaced by placeholders such as `/path/to/library`.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system/environment
+      placeholder: "Example: Ubuntu 24.04, macOS 15, WSL2"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "Example: Python 3.12.4"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Noqlen Forge Core version or commit
+      placeholder: "Example: 0.1.0 or commit abc1234"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs/output
+      description: Remove private data before posting. Short excerpts are better than full dumps.
+      render: text
+  - type: dropdown
+    id: fake_data
+    attributes:
+      label: Does this happen with fake or temporary data?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+  - type: dropdown
+    id: dry_run
+    attributes:
+      label: Were real-library operations dry-run only?
+      options:
+        - "Yes, dry-run only"
+        - "No, --apply was used"
+        - "No real-library operation was involved"
+    validations:
+      required: true

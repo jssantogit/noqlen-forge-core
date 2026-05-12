@@ -1,0 +1,43 @@
+name: Safety-sensitive report
+description: Ask how to report a sensitive issue without exposing private data publicly.
+title: "Safety: "
+labels: [safety]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not post secrets, tokens, API keys, private library dumps, real local paths, full lyrics, raw fingerprints, or personal/private data in public issues.
+
+        If a report requires sensitive details, open a minimal public issue without those details. If a private maintainer channel is published later, use that channel instead. Do not disclose private tokens or private library data in this form.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Minimal public summary
+      description: Describe the safety concern without sensitive details.
+    validations:
+      required: true
+  - type: dropdown
+    id: exposure_type
+    attributes:
+      label: What kind of data could be exposed?
+      options:
+        - "Secrets, tokens, or API keys"
+        - "Real local paths or private library structure"
+        - "Private library dumps or reports"
+        - "Full lyrics or raw fingerprints"
+        - "Personal/private data"
+        - "Other or not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Sanitized reproduction notes
+      description: Use fake paths, fake data, and short sanitized examples only.
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Public-report safety check
+      options:
+        - label: I removed secrets, private paths, private dumps, full lyrics, raw fingerprints, and personal/private data.
+          required: true

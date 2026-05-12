@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation site
+    url: https://jssantogit.github.io/noqlen-forge-core/
+    about: Read installation, safety, workflow, and reference documentation.
+  - name: Support guidance
+    url: https://github.com/jssantogit/noqlen-forge-core/blob/master/SUPPORT.md
+    about: Learn how to report issues without exposing private library data.
+  - name: Contributing guidance
+    url: https://github.com/jssantogit/noqlen-forge-core/blob/master/CONTRIBUTING.md
+    about: Review contribution scope and validation expectations.
