@@ -1,6 +1,8 @@
 # Noqlen
 
 <section class="noqlen-hero" markdown>
+<img class="noqlen-hero-logo" src="assets/images/noqlen-logo.png" alt="Noqlen">
+
 <p class="eyebrow">Local music-library workflows, controlled by you</p>
 
 Noqlen is a music-library ecosystem for controlled metadata, import, server, and playback workflows. **Noqlen Forge Core** is the first public component: a CLI-first metadata and library-management core for local music collections.

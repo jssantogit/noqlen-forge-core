@@ -57,6 +57,13 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
+.noqlen-hero-logo {
+  display: block;
+  width: min(18rem, 78vw);
+  height: auto;
+  margin: 0 0 1.6rem;
+}
+
 .noqlen-hero p:not(.eyebrow):not(.hero-actions) {
   max-width: 48rem;
   color: var(--noqlen-text);
@@ -121,4 +128,11 @@
 
 .md-typeset code {
   border: 1px solid rgba(231, 203, 144, 0.12);
+}
+
+@media screen and (max-width: 44.9375em) {
+  .noqlen-hero-logo {
+    width: min(14rem, 72vw);
+    margin-bottom: 1.2rem;
+  }
 }
