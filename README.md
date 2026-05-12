@@ -1,5 +1,7 @@
 # Noqlen Forge Core
 
+[![CI](https://github.com/jssantogit/noqlen-forge-core/actions/workflows/ci.yml/badge.svg)](https://github.com/jssantogit/noqlen-forge-core/actions/workflows/ci.yml)
+
 Noqlen Forge Core is the metadata and library-management core of the Noqlen ecosystem. The public CLI command is `noqlen-forge`; the Python package/import path is `noqlen_forge`. Default config, data, cache, and MusicLab paths use `noqlen-forge` naming. SQLite schemas, migrations, and persisted identifiers are reserved for a separate migration-safe audit.
 
 Dry-run is the default for write-capable library workflows. Commands that write tags, update library data, copy or move files, or write to external API state require explicit review and `--apply` where the workflow supports applying changes.

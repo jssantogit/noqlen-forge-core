@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" || python -m pip install -e .
+          python - <<'PY'
+          import importlib.util
+          import subprocess
+          import sys
+
+          missing = [name for name in ("build", "pytest") if importlib.util.find_spec(name) is None]
+          if missing:
+              subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
+          PY
+
+      - name: Validate CLI and smoke checks
+        run: |
+          noqlen-forge --help
+          noqlen-forge dev --help
+          noqlen-forge dev check --smoke
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Build package artifacts
+        run: python -m build
+
+      - name: Inspect package artifacts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import tarfile
+          import zipfile
+
+          forbidden = [term.lower() for term in [
+              ".agents",
+              ".opencode",
+              "AGENTS.md",
+              "Son" + "ivra",
+              "son" + "ivra",
+              "son" + "ivra-meta",
+              "Music" + "Meta",
+              "music" + "meta",
+              ".music" + "meta",
+              "generated-report",
+              "generated-reports",
+              "TO" + "KEN",
+              "SEC" + "RET",
+              "PASS" + "WORD",
+              "API" + "_KEY",
+              ".pytest_cache",
+              ".ruff_cache",
+              ".mypy_cache",
+              "__pycache__",
+              ".pyc",
+              "/dist/",
+              "/build/",
+          ]]
+
+          wheels = list(Path("dist").glob("*.whl"))
+          sdists = list(Path("dist").glob("*.tar.gz"))
+
+          assert wheels, "No wheel found"
+          assert sdists, "No sdist found"
+
+          def inspect_names(artifact, names, package_check):
+              lowered = [name.lower() for name in names]
+              for name, lower_name in zip(names, lowered):
+                  for bad in forbidden:
+                      assert bad not in lower_name, f"Forbidden path in {artifact}: {name}"
+              assert any(package_check(name) for name in names), f"noqlen_forge package missing from {artifact}"
+
+          for wheel in wheels:
+              print(f"Inspecting wheel: {wheel}")
+              with zipfile.ZipFile(wheel) as zf:
+                  inspect_names(wheel, zf.namelist(), lambda name: name.startswith("noqlen_forge/"))
+
+          for sdist in sdists:
+              print(f"Inspecting sdist: {sdist}")
+              with tarfile.open(sdist, "r:gz") as tf:
+                  inspect_names(sdist, tf.getnames(), lambda name: "/noqlen_forge/" in name)
+
+          print("Artifact inspection passed")
+          PY
+
+      - name: Search for legacy references
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+
+          terms = [
+              "Son" + "ivra",
+              "son" + "ivra",
+              "son" + "ivra-meta",
+              "Music" + "Meta",
+              "music" + "meta",
+              ".music" + "meta",
+          ]
+          pattern = "|".join(terms)
+          result = subprocess.run(["rg", "-n", pattern, "."], text=True, capture_output=True)
+          if result.returncode == 0:
+              print(result.stdout)
+              sys.exit("Forbidden legacy reference found")
+          if result.returncode not in (0, 1):
+              print(result.stderr, file=sys.stderr)
+              sys.exit(result.returncode)
+          print("No legacy references found")
+          PY
+
+      - name: Search for likely private leakage
+        run: |
+          python - <<'PY'
+          import re
+          import subprocess
+          import sys
+
+          paths = [
+              "README.md",
+              "docs",
+              "pyproject.toml",
+              "config.example.toml",
+              "noqlen_forge",
+              "tests",
+              ".github",
+          ]
+          terms = [
+              "/" + "home" + "/",
+              "/" + "Users" + "/",
+              "C:" + "\\\\",
+              "TO" + "KEN",
+              "SEC" + "RET",
+              "PASS" + "WORD",
+              "API" + "_KEY",
+              "full " + "lyrics",
+              "raw " + "fingerprint",
+          ]
+          pattern = "|".join(terms)
+          result = subprocess.run(["rg", "-n", pattern, *paths], text=True, capture_output=True)
+          if result.returncode not in (0, 1):
+              print(result.stderr, file=sys.stderr)
+              sys.exit(result.returncode)
+
+          findings = []
+          for line in result.stdout.splitlines():
+              if re.match(r"\.github/workflows/ci\.yml:\d+:", line):
+                  continue
+              findings.append(line)
+
+          if findings:
+              print("Possible private leakage found; review these advisory matches:")
+              print("\n".join(findings))
+              sys.exit(0)
+
+          print("No private leakage found")
+          PY
