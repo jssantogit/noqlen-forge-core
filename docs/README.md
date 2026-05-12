@@ -2,6 +2,10 @@
 
 This documentation is split by audience so users can start safely without reading contributor internals, while developers can still find architecture and validation guidance.
 
+Live documentation site: https://jssantogit.github.io/noqlen-forge-core/
+
+The published site is built from `docs_site/`. This `docs/` directory keeps repository-maintained usage, reference, development, and release-planning notes without duplicating the full published site.
+
 ## User Docs
 
 - [Public roadmap](project/roadmap.md): current Forge focus, later Noqlen ecosystem direction, and safety principles.

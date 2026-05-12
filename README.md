@@ -4,11 +4,13 @@
 
 Noqlen Forge Core is a command-line metadata and library-management core for local music collections.
 
+Documentation: https://jssantogit.github.io/noqlen-forge-core/
+
 ## What Is Noqlen Forge Core?
 
 Noqlen Forge Core helps scan, audit, enrich, organize, review, and report on a music library with dry-run-first safety. It is the current public core of the Noqlen ecosystem, exposed through the `noqlen-forge` CLI and the `noqlen_forge` Python package/import path.
 
-The README is a quick landing page for new visitors. Deeper usage, configuration, reference, and release-planning details live in [docs/](docs/).
+The README is a quick landing page for new visitors. The full documentation site includes installation, first safe workflow, safety model, feature overview, Navidrome-oriented workflows, and roadmap.
 
 ## What It Helps With
 
@@ -56,7 +58,11 @@ This is the safest first validation after installation. Save real-library workfl
 
 ## Documentation
 
-Start here while the dedicated GitHub Pages documentation site is planned:
+Start with the live documentation site for installation, safe first workflow, feature overview, reference, and roadmap:
+
+- [Live documentation site](https://jssantogit.github.io/noqlen-forge-core/)
+
+Repository-maintained notes remain available here:
 
 - [Documentation index](docs/README.md)
 - [Usage guides](docs/usage/)
