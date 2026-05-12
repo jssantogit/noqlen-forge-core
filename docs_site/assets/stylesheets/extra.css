@@ -215,6 +215,7 @@ body {
 .md-nav--primary > .md-nav__title {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 5.2rem;
   margin: -0.5rem -0.5rem 0.5rem;
   padding: 1.1rem 1rem 1rem;
@@ -226,6 +227,7 @@ body {
   font-size: 0;
   font-weight: 760;
   letter-spacing: -0.035em;
+  text-align: center;
 }
 
 /* Links/active states */
@@ -541,14 +543,15 @@ body {
 
   .md-nav--primary > .md-nav__title {
     min-height: 5rem;
-    padding: 1rem 0.9rem;
+    margin-bottom: 0.7rem;
+    padding: 1.05rem 0.9rem;
   }
 
   .md-nav--primary > .md-nav__title .md-nav__button.md-logo {
     flex: 0 1 10.5rem;
     width: min(10.5rem, 100%);
     height: 3rem;
-    margin: 0;
+    margin-inline: auto;
     padding: 0;
   }
 
@@ -597,9 +600,10 @@ body {
   }
 
   .noqlen-hero-logo {
-    width: 7.5rem;
-    max-width: 48vw;
-    margin-bottom: 1rem;
+    width: clamp(9.375rem, 42vw, 11.875rem);
+    max-width: 60vw;
+    margin-inline: auto;
+    margin-bottom: 1.35rem;
   }
 
   .noqlen-hero h1 {
