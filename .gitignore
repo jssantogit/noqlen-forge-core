@@ -9,6 +9,7 @@ __pycache__/
 !.env.example
 dist/
 build/
+site/
 *.egg-info/
 /config.toml
 *.db

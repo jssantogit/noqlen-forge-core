@@ -22,6 +22,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["build>=1", "pytest>=7"]
+docs = ["mkdocs-material>=9.5"]
 
 [project.scripts]
 noqlen-forge = "noqlen_forge.cli:main"

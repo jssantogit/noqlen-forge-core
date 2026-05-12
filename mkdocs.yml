@@ -1,0 +1,37 @@
+site_name: Noqlen
+site_description: Noqlen is an ecosystem for local music-library workflows, with Noqlen Forge Core as the current metadata and library-management core.
+repo_url: https://github.com/jssantogit/noqlen-forge-core
+docs_dir: docs_site
+
+theme:
+  name: material
+  language: en
+  palette:
+    scheme: slate
+    primary: black
+    accent: amber
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Noqlen Forge Core:
+      - Overview: forge/index.md
+      - Installation: forge/installation.md
+      - First safe workflow: forge/first-safe-workflow.md
+      - Features: forge/features.md
+      - Safety model: forge/safety.md
+      - Navidrome workflows: forge/navidrome-workflows.md
+      - CLI reference: forge/reference/cli.md
+      - Configuration: forge/reference/configuration.md
+  - Ecosystem:
+      - Overview: ecosystem/overview.md
+      - Roadmap: ecosystem/roadmap.md

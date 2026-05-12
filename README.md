@@ -67,6 +67,13 @@ Start here while the dedicated GitHub Pages documentation site is planned:
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
 
+Local MkDocs site builds are available for documentation work:
+
+```bash
+python -m pip install -e ".[docs]"
+python -m mkdocs build --strict
+```
+
 ## Safety Model
 
 - Use dry-run before apply for real-library operations.
