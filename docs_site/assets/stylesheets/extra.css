@@ -216,6 +216,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  width: auto;
   min-height: 5.2rem;
   margin: -0.5rem -0.5rem 0.5rem;
   padding: 1.1rem 1rem 1rem;
@@ -228,6 +230,34 @@ body {
   font-weight: 760;
   letter-spacing: -0.035em;
   text-align: center;
+}
+
+.md-nav--primary > .md-nav__title .md-nav__button.md-logo {
+  position: static;
+  inset: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 0 1 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  margin: 0 auto;
+  padding: 0;
+  transform: none;
+}
+
+.md-nav--primary > .md-nav__title .md-nav__button.md-logo img {
+  display: block;
+  width: auto;
+  max-width: min(10.5rem, 72vw);
+  height: auto;
+  max-height: 3.2rem;
+  margin-inline: auto;
+  object-fit: contain;
+  transform: none;
 }
 
 /* Links/active states */
@@ -548,16 +578,18 @@ body {
   }
 
   .md-nav--primary > .md-nav__title .md-nav__button.md-logo {
-    flex: 0 1 10.5rem;
-    width: min(10.5rem, 100%);
-    height: 3rem;
-    margin-inline: auto;
-    padding: 0;
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    margin: 0 auto;
   }
 
   .md-nav--primary > .md-nav__title .md-nav__button.md-logo img {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    max-width: min(10.5rem, calc(86vw - 1.8rem));
+    height: auto;
+    max-height: 3rem;
   }
 
   .md-nav__list {
