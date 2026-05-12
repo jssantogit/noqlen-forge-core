@@ -1,5 +1,6 @@
 site_name: Noqlen
 site_description: Noqlen is an ecosystem for local music-library workflows, with Noqlen Forge Core as the current metadata and library-management core.
+site_url: https://jssantogit.github.io/noqlen-forge-core/
 repo_url: https://github.com/jssantogit/noqlen-forge-core
 docs_dir: docs_site
 
