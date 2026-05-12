@@ -15,12 +15,23 @@ theme:
     text: Inter
     code: JetBrains Mono
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.indexes
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
     - content.code.copy
 
 extra_css:
   - assets/stylesheets/extra.css
+
+extra:
+  generator: false
+
+copyright: Noqlen — local music-library workflows, controlled by you.
 
 nav:
   - Home: index.md
