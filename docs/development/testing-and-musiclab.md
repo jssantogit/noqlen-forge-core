@@ -29,6 +29,18 @@ noqlen-forge dev check --smoke
 
 Docs/dev-only paths include `README.md`, `docs/**`, and Markdown-only changes that do not alter runtime behavior.
 
+## Project Naming
+
+Development guidance should use current Noqlen naming:
+
+- Noqlen is the overall ecosystem.
+- Noqlen Forge Core is this repository and the current active project.
+- `noqlen-forge` is the public CLI.
+- `noqlen_forge` is the Python package and import path.
+- Noqlen Flux is the future core for search, download, and import workflows.
+- Noqlen Anchor is the future core for local server and service workflows.
+- Noqlen Aria is later app, mobile, or interface work and must not be started yet.
+
 ## Functional Validation
 
 Functional changes require full validation before commit:
@@ -49,7 +61,7 @@ noqlen-forge dev lab run --full --timing
 
 ## Validation Pyramid
 
-- Smoke: compile checks and representative help commands.
+- Smoke: compile checks and representative CLI help output.
 - Unit: pure functions, field registry, parsers, scoring, and query logic.
 - Contract: services, providers, DB helper contracts, structured output, and fake API interfaces.
 - Integration: temporary SQLite/filesystem, fake providers, fake Navidrome, and composed workflows.
@@ -77,13 +89,25 @@ The hidden top-level `lab ...` form remains callable as a compatibility alias fo
 
 Safety rules:
 
+- Start write-capable real-library workflows with dry-run output and review before apply.
+- Do not make destructive changes without explicit confirmation.
+- Keep logs, reports, and planned-change output clear and reviewable.
+- Use backup and recovery steps where a workflow can modify files, tags, databases, or external service state.
+- Validate paths before file operations, and handle symlinks and path traversal carefully.
+- Quarantine suspicious files or records where applicable instead of deleting or overwriting immediately.
 - MusicLab never uses real user files.
 - `lab reset` deletes only directories marked with `.noqlen-forge-lab`.
 - Dangerous paths such as `/`, `$HOME`, broad mount roots, removable-media roots, and configured protected library roots are blocked.
 - Real providers do not run by default; live provider checks must be explicit and credentialed.
+- External APIs should be mocked or faked in automated validation.
 - Any validation command with `--apply` must target only paths inside MusicLab.
 - Automated validation must never write tags, files, SQLite rows, or external API state in the real music library.
 - Real personal paths must not be committed to docs, tests, logs, reports, fixtures, or examples.
+- Never expose secrets, full lyrics, fingerprints, private data, personal paths, or raw provider payloads.
+
+## Site Deployment Policy
+
+Site deployment policy is documented in [Site deployment and cache validation](../site/deployment.md). In short: deploy through GitHub Actions only, build with `python -m mkdocs build --strict`, do not use `mkdocs gh-deploy`, do not rely on a manual `gh-pages` branch, and do not commit generated `site/` files.
 
 ## Protected Library Roots
 

@@ -19,10 +19,11 @@ Real-library operations should start with dry-run output and explicit review. Ap
 
 ## Later Ecosystem Direction
 
-- Noqlen Flux Core is planned for downloads and import workflows.
-- Noqlen Anchor Core is planned for Navidrome and local server management.
-- Noqlen Aria is a future player and app experience.
-- Noqlen Aria should not be developed before Forge, Flux, and Anchor are mature enough to provide stable foundations.
+- First, stabilize and harden Noqlen Forge Core.
+- Next, Noqlen Flux is planned for search, download, and import workflows.
+- Then, Noqlen Anchor is planned for Navidrome and local server or service workflows.
+- Later, Noqlen Aria may become an app, mobile, or interface layer.
+- Do not start Noqlen Aria or mobile implementation work yet; future UI should control solid cores rather than host heavy logic first.
 - Noqlen Core may emerge if shared concepts can be extracted cleanly from Forge, Flux, and Anchor.
 
 These names describe direction, not current implementation status. Noqlen Forge Core remains the current active public project.
@@ -30,6 +31,7 @@ These names describe direction, not current implementation status. Noqlen Forge 
 ## Out Of Scope For Now
 
 - Full Noqlen Aria app development.
+- Any app/mobile implementation that bypasses Forge, Flux, and Anchor stabilization.
 - PyPI publication unless it is explicitly planned and documented.
 - Destructive real-library operations without dry-run output and review.
 - Assuming external services are always available.
