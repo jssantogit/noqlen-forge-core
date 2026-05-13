@@ -57,6 +57,52 @@ from .writers import apply_musicbrainz_writes, plan_musicbrainz_writes, plan_par
 PUBLIC_COMMAND_METAVAR = "COMMAND"
 
 
+class AdvancedHelpParser(argparse.ArgumentParser):
+    def parse_known_args(self, args: list[str] | None = None, namespace: argparse.Namespace | None = None):  # type: ignore[override]
+        self._show_advanced_help = bool(args is not None and "--advanced" in args)
+        return super().parse_known_args(args, namespace)
+
+    def format_help(self) -> str:
+        advanced = bool(getattr(self, "_show_advanced_help", False))
+        advanced_actions = [action for action in self._actions if getattr(action, "_noqlen_advanced", False)]
+        if advanced or not advanced_actions:
+            return super().format_help()
+
+        original_epilog = self.epilog
+        original_help = {action: action.help for action in advanced_actions}
+        for action in advanced_actions:
+            action.help = argparse.SUPPRESS
+        hint = f"Run `noqlen-forge {self.prog.split(' ', 1)[1]} --advanced --help` for provider, backend and tuning options."
+        self.epilog = f"{hint}\n\n{original_epilog}" if original_epilog else hint
+        try:
+            return super().format_help()
+        finally:
+            self.epilog = original_epilog
+            for action, help_text in original_help.items():
+                action.help = help_text
+
+
+def _advanced_group(parser: argparse.ArgumentParser, title: str) -> argparse._ArgumentGroup:
+    groups = getattr(parser, "_noqlen_advanced_groups", None)
+    if groups is None:
+        groups = {}
+        parser._noqlen_advanced_groups = groups
+    if title not in groups:
+        groups[title] = parser.add_argument_group(title)
+    return groups[title]
+
+
+def _add_advanced_argument(parser: argparse.ArgumentParser, section: str, *args, **kwargs) -> argparse.Action:
+    action = _advanced_group(parser, section).add_argument(*args, **kwargs)
+    action._noqlen_advanced = True
+    return action
+
+
+def _add_advanced_help_switch(parser: argparse.ArgumentParser) -> None:
+    parser._optionals.title = "Common options"
+    _add_advanced_argument(parser, "Output/debug options", "--advanced", action="store_true", help="Show technical provider, backend, tuning and debug options in help output")
+
+
 def _add_debug_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
 
@@ -372,7 +418,7 @@ MusicLab creates, resets and runs isolated validation fixtures for contributors.
 def build_parser() -> argparse.ArgumentParser:
     invoked_name = Path(sys.argv[0]).name or "noqlen-forge"
     prog = invoked_name if invoked_name == "noqlen-forge" else "noqlen-forge"
-    parser = argparse.ArgumentParser(
+    parser = AdvancedHelpParser(
         prog=prog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""Noqlen Forge Core CLI prepares local music metadata safely.
@@ -414,7 +460,7 @@ Contributor tools:
   Start with read-only/help/status commands before apply/write workflows.
 """,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True, metavar=PUBLIC_COMMAND_METAVAR, help="Command to run.")
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar=PUBLIC_COMMAND_METAVAR, help="Command to run.", parser_class=AdvancedHelpParser)
 
     _add_navidrome_parser(subparsers)
     _add_jobs_parser(subparsers)
@@ -736,10 +782,11 @@ Dry-run is the default. With --apply it copies or moves files and may update ope
     organize_mode.add_argument("--copy", action="store_true")
     organize_mode.add_argument("--move", action="store_true")
     organize.add_argument("--library", type=Path)
-    organize.add_argument("--template")
-    organize.add_argument("--singleton-template")
-    organize.add_argument("--conflict-policy", choices=("review", "skip", "rename"))
+    _add_advanced_argument(organize, "Maintenance options", "--template")
+    _add_advanced_argument(organize, "Maintenance options", "--singleton-template")
+    _add_advanced_argument(organize, "Maintenance options", "--conflict-policy", choices=("review", "skip", "rename"))
     organize.add_argument("--verbose", action="store_true")
+    _add_advanced_help_switch(organize)
     _add_debug_argument(organize)
 
     import_parser = subparsers.add_parser(
@@ -763,13 +810,14 @@ Dry-run is the default. With --apply it may enrich tags, copy/move files into th
     import_mode.add_argument("--copy", action="store_true")
     import_mode.add_argument("--move", action="store_true")
     import_parser.add_argument("--replaygain", action="store_true")
-    import_parser.add_argument("--skip-enrich", action="store_true")
-    import_parser.add_argument("--skip-cover", action="store_true")
-    import_parser.add_argument("--skip-lyrics", action="store_true")
-    import_parser.add_argument("--skip-organize", action="store_true")
-    import_parser.add_argument("--allow-review", action="store_true")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-enrich", action="store_true")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-cover", action="store_true")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-lyrics", action="store_true")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-organize", action="store_true")
+    _add_advanced_argument(import_parser, "Maintenance options", "--allow-review", action="store_true")
     import_parser.add_argument("--force", action="store_true")
     import_parser.add_argument("--verbose", action="store_true")
+    _add_advanced_help_switch(import_parser)
     _add_debug_argument(import_parser)
 
     metadata = subparsers.add_parser(
@@ -785,13 +833,14 @@ Dry-run is the default and is intended for review first. With --apply, accepted 
     metadata.add_argument("--apply", action="store_true", help="Write accepted metadata plans to tags")
     metadata.add_argument("--dry-run", action="store_true", help="Review planned metadata changes without writing; this is the default")
     metadata.add_argument("--force", action="store_true", help="Allow replacement of existing supported fields where the workflow permits it")
-    metadata.add_argument("--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"), help="Use a specific provider; may be repeated")
-    metadata.add_argument("--allow-more-providers", action="store_true", help="Allow provider fan-out beyond the configured active-provider limit")
-    metadata.add_argument("--min-confidence", choices=("high", "medium", "low"), help="Minimum confidence required before a provider match can be accepted")
-    metadata.add_argument("--discogs-release-id", help="Advanced: force a specific Discogs release ID for provider lookup")
-    metadata.add_argument("--candidate", type=int, help="Advanced: select a numbered provider candidate when supported")
-    metadata.add_argument("--itunes-storefront", help="Advanced: override the iTunes storefront for this lookup")
+    _add_advanced_argument(metadata, "Provider options", "--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"), help="Use a specific provider; may be repeated")
+    _add_advanced_argument(metadata, "Provider options", "--allow-more-providers", action="store_true", help="Allow provider fan-out beyond the configured active-provider limit")
+    _add_advanced_argument(metadata, "Metadata matching options", "--min-confidence", choices=("high", "medium", "low"), help="Minimum confidence required before a provider match can be accepted")
+    _add_advanced_argument(metadata, "Provider options", "--discogs-release-id", help="Force a specific Discogs release ID for provider lookup")
+    _add_advanced_argument(metadata, "Metadata matching options", "--candidate", type=int, help="Select a numbered provider candidate when supported")
+    _add_advanced_argument(metadata, "Provider options", "--itunes-storefront", help="Override the iTunes storefront for this lookup")
     metadata.add_argument("--verbose", action="store_true", help="Show detailed provider attempts and decisions")
+    _add_advanced_help_switch(metadata)
     _add_debug_argument(metadata)
 
     batch = subparsers.add_parser(
@@ -831,11 +880,12 @@ Dry-run is the default and should be reviewed before applying. With --apply, cle
     cover.add_argument("--no-embed-cover", dest="embed_cover", action="store_false")
     cover.add_argument("--save-folder-cover", dest="save_folder_cover", action="store_true", default=None)
     cover.add_argument("--no-folder-cover", dest="save_folder_cover", action="store_false")
-    cover.add_argument("--force-folder-cover", action="store_true")
-    cover.add_argument("--remove-folder-cover", action="store_true")
-    cover.add_argument("--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
-    cover.add_argument("--min-cover-confidence", choices=("high", "medium", "low"))
+    _add_advanced_argument(cover, "Cover options", "--force-folder-cover", action="store_true")
+    _add_advanced_argument(cover, "Cover options", "--remove-folder-cover", action="store_true")
+    _add_advanced_argument(cover, "Provider options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
+    _add_advanced_argument(cover, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"))
     cover.add_argument("--verbose", action="store_true")
+    _add_advanced_help_switch(cover)
     _add_debug_argument(cover)
 
     lyrics = subparsers.add_parser("lyrics", help="Detect, fetch, save and embed lyrics; dry-run unless --apply")
@@ -855,14 +905,15 @@ Dry-run is the default and should be reviewed before applying. With --apply, cle
     lyrics.add_argument("--unsynced", dest="prefer_synced", action="store_false")
     lyrics.add_argument("--prefer-local", dest="prefer_local", action="store_true", default=None)
     lyrics.add_argument("--no-prefer-local", dest="prefer_local", action="store_false")
-    lyrics.add_argument("--allow-instrumental", action="store_true", default=None)
-    lyrics.add_argument("--allow-empty", action="store_true", default=None)
-    lyrics.add_argument("--provider", dest="lyrics_source", action="append")
-    lyrics.add_argument("--lyrics-source", action="append")
-    lyrics.add_argument("--providers")
-    lyrics.add_argument("--min-lyrics-confidence", choices=("high", "medium", "low"))
-    lyrics.add_argument("--format", choices=("text", "json"), default="text")
+    _add_advanced_argument(lyrics, "Lyrics options", "--allow-instrumental", action="store_true", default=None)
+    _add_advanced_argument(lyrics, "Lyrics options", "--allow-empty", action="store_true", default=None)
+    _add_advanced_argument(lyrics, "Provider options", "--provider", dest="lyrics_source", action="append")
+    _add_advanced_argument(lyrics, "Provider options", "--lyrics-source", action="append")
+    _add_advanced_argument(lyrics, "Provider options", "--providers")
+    _add_advanced_argument(lyrics, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"))
+    _add_advanced_argument(lyrics, "Output/debug options", "--format", choices=("text", "json"), default="text")
     lyrics.add_argument("--verbose", action="store_true")
+    _add_advanced_help_switch(lyrics)
     _add_debug_argument(lyrics)
 
     analyze = subparsers.add_parser(
@@ -878,28 +929,29 @@ Dry-run is the default. With --apply, selected analysis results may write suppor
     analyze.add_argument("--apply", action="store_true", help="Write selected analysis results instead of previewing them")
     analyze.add_argument("--bpm", action="store_true", help="Analyze BPM")
     analyze.add_argument("--key", action="store_true", help="Analyze optional KEY/INITIALKEY metadata")
-    analyze.add_argument("--backend", metavar="BACKEND", help="Optional key detection backend used with --key: auto, portable_basic, or disabled")
+    _add_advanced_argument(analyze, "Audio analysis options", "--backend", metavar="BACKEND", help="Optional key detection backend used with --key: auto, portable_basic, or disabled")
     analyze.add_argument("--features", action="store_true", help="Analyze local audio feature fields")
     analyze.add_argument("--lastfm-tags", action="store_true", help="Fetch Last.fm tags when configured")
     analyze.add_argument("--mood", action="store_true", help="Infer mood metadata from available signals")
-    analyze.add_argument("--skip-lastfm", action="store_true", help="Skip Last.fm calls even when Last.fm options are selected")
-    analyze.add_argument("--energy", action="store_true")
-    analyze.add_argument("--danceability", action="store_true")
-    analyze.add_argument("--skip-existing", action="store_true")
-    analyze.add_argument("--force", action="store_true")
-    analyze.add_argument("--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
-    analyze.add_argument("--bpm-round", choices=("int", "1dp"), default="1dp")
-    analyze.add_argument("--feature-confidence", choices=("low", "medium", "high"), default="medium")
-    analyze.add_argument("--force-lastfm", action="store_true")
-    analyze.add_argument("--force-mood", action="store_true")
-    analyze.add_argument("--lastfm-min-count", type=int, default=3)
-    analyze.add_argument("--lastfm-max-tags", type=int, default=10)
-    analyze.add_argument("--lastfm-debug", action="store_true")
-    analyze.add_argument("--lastfm-raw", action="store_true")
-    analyze.add_argument("--lastfm-no-fallback", action="store_true")
+    _add_advanced_argument(analyze, "Provider options", "--skip-lastfm", action="store_true", help="Skip Last.fm calls even when Last.fm options are selected")
+    _add_advanced_argument(analyze, "Audio analysis options", "--energy", action="store_true")
+    _add_advanced_argument(analyze, "Audio analysis options", "--danceability", action="store_true")
+    _add_advanced_argument(analyze, "Audio analysis options", "--skip-existing", action="store_true")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force", action="store_true")
+    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
+    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp")
+    _add_advanced_argument(analyze, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force-lastfm", action="store_true")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force-mood", action="store_true")
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-min-count", type=int, default=3)
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-max-tags", type=int, default=10)
+    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-debug", action="store_true")
+    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-raw", action="store_true")
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-no-fallback", action="store_true")
     analyze.add_argument("--no-progress", action="store_true")
     analyze.add_argument("--no-spinner", action="store_true")
     analyze.add_argument("--plain", action="store_true")
+    _add_advanced_help_switch(analyze)
 
     replaygain = subparsers.add_parser("replaygain", help="Analyze ReplayGain/loudness; dry-run unless --apply")
     replaygain.add_argument("path", type=Path)
@@ -963,7 +1015,7 @@ The flow uses Noqlen Forge Core native providers through the CLI. AcoustID Ident
         epilog="""Examples:
   noqlen-forge enrich "$ALBUM" --full
   noqlen-forge enrich "$ALBUM" --full --apply
-  noqlen-forge enrich "$ALBUM" --full --skip-lastfm --skip-mood
+  noqlen-forge enrich "$ALBUM" --cover --lyrics
 """,
     )
     enrich.add_argument("path", type=Path)
@@ -971,57 +1023,57 @@ The flow uses Noqlen Forge Core native providers through the CLI. AcoustID Ident
     enrich.add_argument("--dry-run", action="store_true")
     enrich.add_argument("--force", action="store_true")
     enrich.add_argument("--full", action="store_true")
-    enrich.add_argument("--acoustid-identify", action="store_true")
-    enrich.add_argument("--skip-acoustid-identify", action="store_true")
+    _add_advanced_argument(enrich, "Metadata matching options", "--acoustid-identify", action="store_true")
+    _add_advanced_argument(enrich, "Metadata matching options", "--skip-acoustid-identify", action="store_true")
     enrich.add_argument("--analyze-bpm", action="store_true")
     enrich.add_argument("--analyze-key", action="store_true", help="Run optional key detection; unavailable backends are skipped")
     enrich.add_argument("--analyze-features", action="store_true")
-    enrich.add_argument("--skip-bpm", action="store_true")
-    enrich.add_argument("--skip-key", action="store_true", help="Skip optional key detection in --full")
-    enrich.add_argument("--skip-features", action="store_true")
-    enrich.add_argument("--with-lastfm", action="store_true")
-    enrich.add_argument("--with-mood", action="store_true")
-    enrich.add_argument("--skip-lastfm", action="store_true")
-    enrich.add_argument("--skip-mood", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-bpm", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-key", action="store_true", help="Skip optional key detection in --full")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-features", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--with-lastfm", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--with-mood", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-lastfm", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-mood", action="store_true")
     enrich.add_argument("--cover", action="store_true")
-    enrich.add_argument("--skip-cover", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-cover", action="store_true")
     enrich.add_argument("--lyrics", action="store_true")
-    enrich.add_argument("--skip-lyrics", action="store_true")
-    enrich.add_argument("--metadata-providers", action="store_true")
-    enrich.add_argument("--skip-metadata-providers", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-lyrics", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--metadata-providers", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-metadata-providers", action="store_true")
     enrich.add_argument("--replaygain", action="store_true")
-    enrich.add_argument("--skip-replaygain", action="store_true")
-    enrich.add_argument("--force-cover", action="store_true")
-    enrich.add_argument("--force-lyrics", action="store_true")
-    enrich.add_argument("--force-acoustid", action="store_true")
-    enrich.add_argument("--force-identity", action="store_true")
-    enrich.add_argument("--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"))
-    enrich.add_argument("--allow-more-providers", action="store_true")
-    enrich.add_argument("--min-confidence", choices=("high", "medium", "low"))
-    enrich.add_argument("--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
-    enrich.add_argument("--lyrics-source", action="append", choices=("local", "lrclib", "genius", "musixmatch", "audd"))
-    enrich.add_argument("--min-cover-confidence", choices=("high", "medium", "low"))
-    enrich.add_argument("--min-lyrics-confidence", choices=("high", "medium", "low"))
-    enrich.add_argument("--force-bpm", action="store_true")
-    enrich.add_argument("--force-key", action="store_true")
-    enrich.add_argument("--force-features", action="store_true")
-    enrich.add_argument("--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
-    enrich.add_argument("--bpm-round", choices=("int", "1dp"), default="1dp")
-    enrich.add_argument("--feature-confidence", choices=("low", "medium", "high"), default="medium")
-    enrich.add_argument("--force-lastfm", action="store_true")
-    enrich.add_argument("--force-mood", action="store_true")
-    enrich.add_argument("--lastfm-min-count", type=int, default=3)
-    enrich.add_argument("--lastfm-max-tags", type=int, default=10)
-    enrich.add_argument("--lastfm-debug", action="store_true")
-    enrich.add_argument("--lastfm-raw", action="store_true")
-    enrich.add_argument("--lastfm-no-fallback", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-replaygain", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-cover", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-lyrics", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-acoustid", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-identity", action="store_true")
+    _add_advanced_argument(enrich, "Provider options", "--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"))
+    _add_advanced_argument(enrich, "Provider options", "--allow-more-providers", action="store_true")
+    _add_advanced_argument(enrich, "Metadata matching options", "--min-confidence", choices=("high", "medium", "low"))
+    _add_advanced_argument(enrich, "Cover options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
+    _add_advanced_argument(enrich, "Lyrics options", "--lyrics-source", action="append", choices=("local", "lrclib", "genius", "musixmatch", "audd"))
+    _add_advanced_argument(enrich, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"))
+    _add_advanced_argument(enrich, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"))
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-bpm", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-key", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-features", action="store_true")
+    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
+    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp")
+    _add_advanced_argument(enrich, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-lastfm", action="store_true")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-mood", action="store_true")
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-min-count", type=int, default=3)
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-max-tags", type=int, default=10)
+    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-debug", action="store_true")
+    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-raw", action="store_true")
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-no-fallback", action="store_true")
     enrich.add_argument("--verbose", action="store_true")
     _add_debug_argument(enrich)
-    enrich.add_argument("--advanced", action="store_true")
     enrich.add_argument("--no-progress", action="store_true")
     enrich.add_argument("--no-spinner", action="store_true")
     enrich.add_argument("--plain", action="store_true")
     enrich.add_argument("--no-color", action="store_true")
+    _add_advanced_help_switch(enrich)
 
     _hide_top_level_command_choices(subparsers)
     return parser

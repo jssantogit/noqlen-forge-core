@@ -91,6 +91,83 @@ def _command_help(command: str, capsys) -> str:
     return capsys.readouterr().out
 
 
+def _advanced_command_help(command: str, capsys, *, advanced_first: bool = True) -> str:
+    argv = [command, "--advanced", "--help"] if advanced_first else [command, "--help", "--advanced"]
+    with pytest.raises(SystemExit) as exc:
+        cli.build_parser().parse_args(argv)
+
+    assert exc.value.code == 0
+    return capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("command", "hidden_flag", "section"),
+    [
+        ("enrich", "--provider", "Provider options:"),
+        ("cover", "--cover-source", "Cover options:"),
+        ("lyrics", "--providers", "Lyrics options:"),
+        ("metadata", "--allow-more-providers", "Metadata matching options:"),
+        ("organize", "--template", "Maintenance options:"),
+        ("import", "--skip-enrich", "Stage selection:"),
+        ("analyze", "--bpm-range", "Audio analysis options:"),
+    ],
+)
+def test_advanced_help_hides_technical_flags_in_normal_help(command: str, hidden_flag: str, section: str, capsys) -> None:
+    normal = _command_help(command, capsys)
+
+    assert hidden_flag not in normal
+    assert section not in normal
+    normalized = " ".join(normal.split())
+    assert f"Run `noqlen-forge {command} --advanced --help` for provider, backend and tuning options." in normalized
+
+
+@pytest.mark.parametrize(
+    ("command", "shown_flag", "section"),
+    [
+        ("enrich", "--provider", "Provider options:"),
+        ("cover", "--cover-source", "Provider options:"),
+        ("lyrics", "--providers", "Provider options:"),
+        ("metadata", "--allow-more-providers", "Provider options:"),
+        ("organize", "--template", "Maintenance options:"),
+        ("import", "--skip-enrich", "Stage selection:"),
+        ("analyze", "--bpm-range", "Audio analysis options:"),
+    ],
+)
+def test_advanced_help_shows_technical_flags_in_sections(command: str, shown_flag: str, section: str, capsys) -> None:
+    advanced = _advanced_command_help(command, capsys)
+
+    assert shown_flag in advanced
+    assert section in advanced
+    assert "Output/debug options:" in advanced
+
+
+def test_advanced_help_accepts_help_before_advanced(capsys) -> None:
+    advanced = _advanced_command_help("enrich", capsys, advanced_first=False)
+
+    assert "--provider" in advanced
+    assert "Provider options:" in advanced
+
+
+def test_safety_and_common_flags_remain_visible_in_normal_help(capsys) -> None:
+    normal = _command_help("enrich", capsys)
+
+    for flag in ("--apply", "--dry-run", "--full", "--plain", "--verbose", "--no-progress"):
+        assert flag in normal
+
+
+def test_advanced_flags_remain_parseable_without_advanced_help() -> None:
+    parser = cli.build_parser()
+
+    enrich = parser.parse_args(["enrich", ".", "--provider", "musicbrainz", "--bpm-range", "80", "160"])
+    metadata = parser.parse_args(["metadata", ".", "--allow-more-providers"])
+    cover = parser.parse_args(["cover", ".", "--cover-source", "itunes"])
+
+    assert enrich.provider == ["musicbrainz"]
+    assert enrich.bpm_range == [80.0, 160.0]
+    assert metadata.allow_more_providers is True
+    assert cover.cover_source == ["itunes"]
+
+
 def test_sparse_command_help_describes_safety_and_scope(capsys) -> None:
     expected = {
         "metadata": ["Fetch metadata from configured providers", "Dry-run is the default", "external metadata services"],
