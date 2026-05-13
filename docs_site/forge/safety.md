@@ -6,7 +6,20 @@ Forge is designed around explicit, reviewable operations. Treat real libraries a
 
 Write-capable workflows should be dry-run first. Read the plan, warnings, confidence, destination paths, and counts before using `--apply`.
 
+Some commands expose `--dry-run` as an explicit compatibility or readability flag, while many write-capable workflows are already dry-run by default. Do not treat the presence or absence of `--dry-run` as the only safety signal. Use command-specific `--help` and the rendered plan to understand exact dry-run, apply, force, output, and review behavior for the command path you are using.
+
 Explicit apply/write modes are not first-run examples. Start with help, status, smoke checks, and fake or fixture validation. Do not test command behavior first on a personal music library.
+
+Safe dry-run/apply discovery examples:
+
+```bash
+noqlen-forge audit --help
+noqlen-forge organize --help
+noqlen-forge maintain repair --help
+noqlen-forge dev check --smoke
+```
+
+Future CLI cleanup may make dry-run/apply wording more consistent across command families. Until then, command-specific help remains the source of exact flags.
 
 ## Command Safety Modes
 

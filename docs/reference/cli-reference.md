@@ -6,6 +6,36 @@ Dry-run is the default for write-capable workflows. Use `--apply` only after rev
 
 For a repository-owned inventory of the complete command surface, compatibility aliases, safety categories, and documentation follow-ups, see [CLI Command Surface Inventory](cli-inventory.md).
 
+## Dry-Run And Apply Behavior
+
+Noqlen Forge Core uses a dry-run-first posture. Many write-capable workflows plan, inspect, or report by default and require explicit apply/write intent before changing tags, music files, Noqlen database state, saved workflow state, or external service state.
+
+`--dry-run` appears on some commands as an explicit compatibility and readability flag. Its presence does not mean commands without `--dry-run` are unsafe, and its absence does not mean a command writes immediately. Treat command-specific help and the command's rendered plan as the source of exact behavior for that command path.
+
+Use these categories when deciding how cautious to be:
+
+| Category | How to interpret it |
+| --- | --- |
+| Read-only commands | Intended to inspect help, configuration, database state, reports, candidates, or service status without writing state, tags, files, or server data. Examples include `audit`, `report`, `query`, `fields`, and `candidates`, with command-specific exceptions such as `audit --job` recording sanitized job state. |
+| Commands that generate reports/files | May write only an explicit output file, such as JSON, CSV, or playlist export output. Review output paths before running. |
+| Commands that write Noqlen DB/state | Can update SQLite rows, saved definitions, local backups, job history, review records, or other Noqlen-managed state when apply/write intent is used. |
+| Commands that can write tags/music files | Can update metadata tags, embedded art, lyrics, sidecars, cover files, copied files, moved files, or organized file locations only after explicit review/write intent. |
+| Commands that can write external service state | Can update configured external services, such as Navidrome restore or playlist push workflows, only after explicit apply/write intent and review. |
+| Developer/test-only commands | Intended for validation and isolated MusicLab fixtures, not normal user-library workflows. |
+
+Do not use a real personal music library as the first test of an apply/write workflow. Start with help, status, smoke checks, and MusicLab, fakes, or disposable fixtures. Command-specific `--help` remains the source of exact dry-run, apply, force, output, and review flags.
+
+Safe discovery examples:
+
+```bash
+noqlen-forge audit --help
+noqlen-forge organize --help
+noqlen-forge maintain repair --help
+noqlen-forge dev check --smoke
+```
+
+Future CLI cleanup may make dry-run/apply wording more consistent across command families, but this reference documents the current behavior before any runtime changes are considered.
+
 ## Common Workflow
 
 ```bash
