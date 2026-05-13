@@ -21,6 +21,7 @@ The published site is built from `docs_site/`. This `docs/` directory keeps repo
 
 - [Contributing](../CONTRIBUTING.md): contribution scope, safe validation, and pull request expectations.
 - [Support](../SUPPORT.md): how to report issues without exposing private data.
+- [Site deployment and cache validation](site/deployment.md): GitHub Actions Pages policy, local MkDocs preview, published-site checks, and stale-cache troubleshooting.
 - [Services](development/services.md): service boundaries, thin CLI adapters, safety, serialization, and testing expectations.
 - [Core API](development/core-api.md): reusable Core API contracts for stable workflows.
 - [Structured results](development/structured-results.md): workflow result schema and machine-readable output guidance.
