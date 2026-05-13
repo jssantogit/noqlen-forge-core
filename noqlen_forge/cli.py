@@ -61,9 +61,8 @@ def _add_debug_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
 
 
-def _hide_top_level_command_help(subparsers: argparse._SubParsersAction, *names: str) -> None:
-    hidden = set(names)
-    subparsers._choices_actions = [action for action in subparsers._choices_actions if action.dest not in hidden]
+def _hide_top_level_command_choices(subparsers: argparse._SubParsersAction) -> None:
+    subparsers._choices_actions = []
 
 
 def _add_sync_arguments(parser: argparse.ArgumentParser) -> None:
@@ -378,51 +377,44 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""Noqlen Forge Core CLI prepares local music metadata safely.
 
-Getting started:
-  config      Manage configuration
-  db          Initialize, scan, query and show status
-
-Primary workflows:
-  audit       Inspect metadata quality
-  enrich      Enrich tags, cover, lyrics and audio features
-  import      Full safe import workflow
+Common workflow:
+  config      Configure Noqlen Forge Core
+  db          Initialize, scan and inspect Noqlen state
+  import      Import files safely into Noqlen-managed workflows
+  audit       Inspect metadata quality before changing files
+  maintain    Sync, repair and rewrite with safety checks
+  metadata    Search/query provider metadata
+  candidates  Inspect MusicBrainz release candidates
+  apply-mbid  Apply explicit MusicBrainz IDs with review
+  enrich      Enrich tags, covers, lyrics and audio features
+  review      Resolve review decisions
   organize    Copy/move files into a library layout
 
-Reports:
-  query       Query the local library database
-  report      Missing fields, duplicates and untracked files
+Reports and inspection:
+  report      Missing fields, duplicates, untracked and missing files
+  query       Query the local Noqlen database
   export      Export reports and library data as JSON/CSV
 
-Playlists and ratings:
-  playlist    Create and export smart playlists
-  navidrome   Backup, diff and safely restore Navidrome data
-
-Maintenance and review:
-  maintain    Sync, rewrite and repair safely
-  review      Inspect and resolve REVIEW decisions
-  jobs        Inspect resumable/cancelable workflow jobs
-
-Focused and advanced tools:
-  cover       Manage embedded cover art
-  lyrics      Manage lyrics
-  replaygain  Analyze loudness/ReplayGain
-  metadata    Query metadata providers
+Focused tools:
+  cover       Cover-art workflow
+  lyrics      Lyrics workflow
+  replaygain  Loudness/ReplayGain workflow
   fields      List supported metadata fields
 
-Developer tools:
-  dev         Contributor validation and isolated MusicLab tools
-""",
-        epilog="""Compatibility shortcuts remain available:
-  sync -> maintain sync
-  duplicates -> report duplicates
-  missing -> report missing
-  untracked -> report untracked
-  missing-files -> report missing-files
+Integrations:
+  playlist    Smart playlist workflows
+  navidrome   Ratings and playlist workflows
 
-Run `noqlen-forge COMMAND --help` for command-specific options and safety notes.
+Contributor tools:
+  dev         Validation and isolated MusicLab tools
+""",
+        epilog="""Notes:
+  Compatibility aliases such as sync, missing, duplicates, untracked and missing-files remain available.
+  Run `noqlen-forge COMMAND --help` for exact flags and safety notes.
+  Start with read-only/help/status commands before apply/write workflows.
 """,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True, metavar=PUBLIC_COMMAND_METAVAR)
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar=PUBLIC_COMMAND_METAVAR, help="Command to run.")
 
     _add_navidrome_parser(subparsers)
     _add_jobs_parser(subparsers)
@@ -576,7 +568,6 @@ Reports are read-only. They do not write tags, alter the SQLite database, move/c
     _add_untracked_parser(subparsers.add_parser("untracked", help=argparse.SUPPRESS))
 
     _add_missing_files_parser(subparsers.add_parser("missing-files", help=argparse.SUPPRESS))
-    _hide_top_level_command_help(subparsers, "sync", "duplicates", "missing", "untracked", "missing-files")
 
     query = subparsers.add_parser("query", help="Query the local library database")
     query.add_argument("query")
@@ -1032,6 +1023,7 @@ The flow uses Noqlen Forge Core native providers through the CLI. AcoustID Ident
     enrich.add_argument("--plain", action="store_true")
     enrich.add_argument("--no-color", action="store_true")
 
+    _hide_top_level_command_choices(subparsers)
     return parser
 
 

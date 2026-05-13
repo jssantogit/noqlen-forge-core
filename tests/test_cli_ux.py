@@ -11,19 +11,18 @@ def _service_output(text: str, code: int = 0) -> WorkflowResult:
 def test_top_level_help_includes_cli_groups() -> None:
     help_text = cli.build_parser().format_help()
 
-    assert "Getting started:" in help_text
-    assert "Primary workflows:" in help_text
-    assert "Reports:" in help_text
-    assert "Playlists and ratings:" in help_text
-    assert "Maintenance and review:" in help_text
-    assert "Focused and advanced tools:" in help_text
-    assert "Developer tools:" in help_text
-    assert "Compatibility shortcuts remain available:" in help_text
-    assert "Run `noqlen-forge COMMAND --help`" in help_text
+    assert "Common workflow:" in help_text
+    assert "Reports and inspection:" in help_text
+    assert "Focused tools:" in help_text
+    assert "Integrations:" in help_text
+    assert "Contributor tools:" in help_text
+    assert "Compatibility aliases such as sync, missing, duplicates, untracked and missing-files remain available." in help_text
+    assert "Run `noqlen-forge COMMAND --help` for exact flags and safety notes." in help_text
+    for command in ("config", "db", "import", "audit", "metadata", "enrich", "organize", "report"):
+        assert command in help_text
     positional_help = help_text.split("positional arguments:", 1)[1].split("options:", 1)[0]
-    assert "    lab" not in positional_help
-    assert "    sync" not in positional_help
-    assert "    duplicates" not in positional_help
+    assert "COMMAND     Command to run." in positional_help
+    assert "\n    " not in positional_help
 
 
 def test_top_level_help_exits_successfully_and_shows_primary_commands(capsys) -> None:
@@ -111,11 +110,9 @@ def test_sparse_command_help_describes_safety_and_scope(capsys) -> None:
 def test_top_level_help_keeps_compatibility_aliases_visible() -> None:
     help_text = cli.build_parser().format_help()
 
-    assert "sync -> maintain sync" in help_text
-    assert "duplicates -> report duplicates" in help_text
-    assert "missing -> report missing" in help_text
-    assert "untracked -> report untracked" in help_text
-    assert "missing-files -> report missing-files" in help_text
+    assert "Compatibility aliases such as sync, missing, duplicates, untracked and missing-files remain available." in help_text
+    assert "sync -> maintain sync" not in help_text
+    assert "duplicates -> report duplicates" not in help_text
 
 
 def test_compatibility_aliases_remain_callable() -> None:
@@ -126,6 +123,15 @@ def test_compatibility_aliases_remain_callable() -> None:
     assert parser.parse_args(["missing", "lyrics"]).command == "missing"
     assert parser.parse_args(["untracked", "."]).command == "untracked"
     assert parser.parse_args(["missing-files"]).command == "missing-files"
+
+
+def test_compatibility_alias_help_remains_callable(capsys) -> None:
+    for alias in ("sync", "duplicates", "missing", "untracked", "missing-files"):
+        with pytest.raises(SystemExit) as exc:
+            cli.build_parser().parse_args([alias, "--help"])
+
+        assert exc.value.code == 0
+        assert f"usage: noqlen-forge {alias}" in capsys.readouterr().out
 
 
 def test_maintain_help_works_and_mentions_dry_run_apply_and_musiclab(capsys) -> None:
