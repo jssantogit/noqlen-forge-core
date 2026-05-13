@@ -9,7 +9,7 @@ Default application paths now use `noqlen-forge` naming:
 - Cache: `~/.cache/noqlen-forge/...` for provider caches.
 - MusicLab: `~/MusicLab/noqlen-forge-lab`, marked with `.noqlen-forge-lab`.
 
-No automatic data migration is performed. Existing pre-release local directories are not renamed, deleted, or modified by Noqlen Forge Core. Developers preparing for the public release should create fresh config/data/cache paths using the final defaults.
+No automatic data migration is performed. Existing pre-release local directories are not renamed, deleted, or modified by Noqlen Forge Core. Developers doing public-hardening validation should create fresh config/data/cache paths using the final defaults.
 
 ## Product names
 

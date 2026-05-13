@@ -69,7 +69,7 @@ Repository-maintained notes remain available here:
 - [Real-world usage guide](docs/usage/real-world-guide.md)
 - [Configuration guide](docs/usage/configuration-guide.md)
 - [Public roadmap](docs/project/roadmap.md)
-- [First public release checklist](docs/release/first-public-release-checklist.md)
+- [Public hardening and first tagged release checklist](docs/release/first-public-release-checklist.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
 

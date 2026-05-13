@@ -26,7 +26,7 @@ The published site is built from `docs_site/`. This `docs/` directory keeps repo
 - [Structured results](development/structured-results.md): workflow result schema and machine-readable output guidance.
 - [Audio key detection](development/audio-key-detection.md): backend registry and native key detection implementation notes.
 - [Testing and MusicLab](development/testing-and-musiclab.md): validation pyramid, docs-only checks, and isolated MusicLab rules.
-- [First public release checklist](release/first-public-release-checklist.md): review checklist before public visibility or package publication planning.
+- [Public hardening and first tagged release checklist](release/first-public-release-checklist.md): readiness checks for license, privacy, safety, CI, Pages, and release tagging.
 
 ## Reference Docs
 
