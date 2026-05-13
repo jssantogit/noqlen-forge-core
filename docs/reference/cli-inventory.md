@@ -4,6 +4,8 @@
 
 This inventory records the current public `noqlen-forge` command surface as observed from installed CLI help. It is a baseline for documentation coverage, public site expansion, and later help usability work. It is not a tutorial and does not propose command behavior changes.
 
+Normal help is intentionally focused on common workflows while keeping safety-critical flags visible. Technical provider, backend, tuning, debug, and advanced workflow flags remain available through command-specific advanced help, for example `noqlen-forge enrich --advanced --help`.
+
 ## How This Inventory Is Maintained
 
 - Refresh this page from `noqlen-forge --help` and relevant nested `--help` output before changing public CLI help or command structure.
@@ -65,6 +67,11 @@ Use this matrix to answer what a command family may affect before running it. A 
 Safe discovery examples:
 
 ```bash
+noqlen-forge --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
 noqlen-forge db status
 noqlen-forge report missing --help
 noqlen-forge navidrome ratings diff --help
@@ -212,13 +219,14 @@ The `dev` tree is intentionally visible as contributor tooling but should remain
 
 The `dev lab` tree includes `create`, `list`, `run`, `reset`, and `doctor`. The `run` command supports quick/full modes plus scenario, area, tag, timing, optional provider, and path controls.
 
-## Sparse-Help Follow-Ups
+## Help Model Follow-Ups
 
-- Top-level help remains long because it includes workflow commands, focused tools, aliases, and contributor commands in one command list.
-- Compatibility aliases increase discovery noise and should be accounted for in future help simplification without breaking compatibility.
-- `metadata`, `batch`, `cleanup`, `analyze`, `set-style`, `candidates`, `apply-mbid`, `fields`, and `jobs` need better docs/help review.
+- Normal help should stay focused on common workflows while keeping safety-critical flags visible.
+- Advanced help should expose provider, backend, tuning, debug, and advanced workflow controls without making them first-run defaults.
+- Compatibility aliases increase discovery noise and should be accounted for in future help organization without breaking compatibility.
+- `metadata`, `batch`, `cleanup`, `analyze`, `set-style`, `candidates`, `apply-mbid`, `fields`, and `jobs` need better docs review across normal and advanced help.
 - Navidrome playlist `diff` and `push-smart` need deeper safety examples around output files, identity matching, and server writes.
-- `review`, `maintain repair`, and several advanced workflows use positional passthrough shapes that are harder to discover from help alone.
+- `review`, `maintain repair`, and several advanced workflows use positional passthrough shapes that need clearer examples beyond help output.
 - Dry-run flag behavior needs clearer documentation across commands that expose both `--apply` and `--dry-run`.
 - Commands with optional explicit output files should consistently state whether they write only the requested output file or also update local state.
 
@@ -232,7 +240,6 @@ The `dev lab` tree includes `create`, `list`, `run`, `reset`, and `doctor`. The 
 
 ## Deferred CLI Usability Follow-Ups
 
-- Simplify future CLI help without removing current compatibility aliases in this documentation-only commit.
-- Separate common user workflows from advanced/focused tools in top-level help while preserving command compatibility.
+- Continue separating common user workflows from advanced technical controls while preserving command compatibility.
 - Clarify `--apply`, `--dry-run`, `--force`, output, and review behavior consistently in command help.
 - Consider deeper nested help examples for Navidrome, playlists, jobs, metadata, batch, cleanup, analysis, and MBID workflows in a later runtime/tested change.

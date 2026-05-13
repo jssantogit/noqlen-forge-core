@@ -10,12 +10,33 @@ Use command help for the exact current command tree and flags:
 
 ```bash
 noqlen-forge --help
-noqlen-forge audit --help
-noqlen-forge report missing --help
-noqlen-forge navidrome --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
 ```
 
 This page summarizes the public command surface so you can find the right workflow before reading command-specific help.
+
+## Normal Help And Advanced Help
+
+Normal help is intended for common user workflows. It keeps safety-critical flags visible, shows the options most users need to run and review workflows, and avoids filling first-run help with every provider, backend, tuning, and debug option.
+
+Advanced help is shown with `--advanced --help`. It exposes provider, backend, tuning, debug, and advanced workflow flags for users who already understand a command and need technical control.
+
+Advanced flags were not removed. They are hidden from normal help where appropriate, and command behavior did not change. Existing scripts should continue working unless they depend on exact help text output.
+
+Use this discovery path:
+
+```bash
+noqlen-forge --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
+```
+
+Start with normal help, inspect command-specific help before running workflows, and use advanced help only when tuning providers, backends, or stages. Do not treat advanced options as first-run workflow defaults. Dry-run and review still come before apply/write workflows.
 
 ## Safe First Checks
 
@@ -202,7 +223,7 @@ For a deeper repository-owned inventory, see `docs/reference/cli-inventory.md` i
 
 ## Known Follow-Ups
 
-- Some command help is still sparse, especially advanced focused tools and job workflows.
-- Top-level help is still long because it includes common workflows, advanced tools, aliases, and contributor commands.
+- Normal help should stay focused on common workflows while advanced help carries technical provider, backend, tuning, debug, and advanced workflow controls.
+- Some focused tools and job workflows still need deeper public examples beyond help output.
 - Compatibility aliases are kept for compatibility and discovery.
 - Deeper public pages for Navidrome, playlists, configuration, and safety will be expanded later.

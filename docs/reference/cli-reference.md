@@ -6,6 +6,26 @@ Dry-run is the default for write-capable workflows. Use `--apply` only after rev
 
 For a repository-owned inventory of the complete command surface, compatibility aliases, safety categories, and documentation follow-ups, see [CLI Command Surface Inventory](cli-inventory.md).
 
+## Normal Help And Advanced Help
+
+Normal help is intentionally shorter than the full technical command surface. It shows common workflow options, keeps safety-critical flags visible, and avoids dumping every provider, backend, tuning, and debug option into first-run help output.
+
+Advanced flags still exist. Use `--advanced --help` when you already understand the workflow and need technical control over providers, backends, stages, tuning, or debug output.
+
+Safe help examples:
+
+```bash
+noqlen-forge --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
+```
+
+Start with normal help, then inspect command-specific help before running workflows. Use advanced help only when tuning providers, backends, or workflow stages; do not treat advanced options as first-run workflow defaults. Dry-run and review still come before apply/write workflows.
+
+This help split does not change command behavior. Advanced flags were not removed; they are hidden from normal help where appropriate. Existing scripts should continue working unless they depend on exact help text output.
+
 ## Dry-Run And Apply Behavior
 
 Noqlen Forge Core uses a dry-run-first posture. Many write-capable workflows plan, inspect, or report by default and require explicit apply/write intent before changing tags, music files, Noqlen database state, saved workflow state, or external service state.

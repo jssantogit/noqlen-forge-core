@@ -21,6 +21,24 @@ noqlen-forge dev check --smoke
 
 Future CLI cleanup may make dry-run/apply wording more consistent across command families. Until then, command-specific help remains the source of exact flags.
 
+## Normal Help And Advanced Help
+
+Normal help is shorter by design. It shows common workflow options, keeps safety-critical flags visible, and avoids listing every technical provider, backend, tuning, and debug option.
+
+Advanced help is available with `--advanced --help` for users who already understand the workflow and need technical control:
+
+```bash
+noqlen-forge --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
+```
+
+Advanced flags were not removed, and command behavior did not change. Existing scripts should continue working unless they depend on exact help text output. Start with normal help, inspect command-specific help before running workflows, and use advanced help only for provider, backend, tuning, stage, or debug controls.
+
+Do not treat advanced options as first-run workflow defaults. Dry-run and review still come before apply/write workflows.
+
 ## Command Safety Modes
 
 Use this table to understand what a command family may affect. A family can include multiple safety modes because subcommands and flags differ. Use `noqlen-forge COMMAND --help` and nested help before running unfamiliar workflows.
@@ -82,4 +100,4 @@ Automated tests and development validation should use fake or temporary librarie
 
 ## Needs Follow-Up
 
-Some command help remains sparse or needs deeper public examples: `metadata`, `batch`, `cleanup`, `analyze`, `set-style`, `candidates`, `apply-mbid`, `fields`, `jobs`, Navidrome playlist `diff`/`push-smart`, and dry-run flag behavior across advanced workflows.
+Some commands need deeper public examples beyond help output: `metadata`, `batch`, `cleanup`, `analyze`, `set-style`, `candidates`, `apply-mbid`, `fields`, `jobs`, Navidrome playlist `diff`/`push-smart`, and dry-run flag behavior across advanced workflows.

@@ -13,6 +13,8 @@ noqlen-forge dev check --smoke
 
 `--help` confirms the command is installed and shows the current command tree. `dev check --smoke` runs lightweight validation and representative help checks without touching a personal collection.
 
+Normal help is intentionally focused on common workflows and safety-critical flags. Technical provider, backend, tuning, debug, and advanced workflow flags are available from command-specific advanced help when you need them.
+
 ## Step 2: Inspect Configuration Paths
 
 Check where Forge will read configuration from before creating or changing anything:
@@ -67,13 +69,17 @@ If you create your own fixture later, keep it small and disposable, for example 
 Read command-specific help before using workflow commands. Start with discovery commands like:
 
 ```bash
+noqlen-forge --help
 noqlen-forge audit --help
-noqlen-forge report missing --help
-noqlen-forge organize --help
-noqlen-forge navidrome --help
+noqlen-forge enrich --help
+noqlen-forge enrich --advanced --help
+noqlen-forge metadata --advanced --help
+noqlen-forge organize --advanced --help
 ```
 
-The [CLI Reference](reference/cli.md) summarizes command groups, nested workflows, compatibility aliases, and safety categories.
+Use normal help first. Use advanced help only after you understand the workflow and need to tune providers, backends, or stages. Advanced flags still exist and command behavior has not changed; they are just hidden from normal help where appropriate.
+
+The [CLI Reference](reference/cli.md) summarizes command groups, nested workflows, compatibility aliases, help modes, and safety categories.
 
 ## Step 6: Dry-Run Before Apply
 
