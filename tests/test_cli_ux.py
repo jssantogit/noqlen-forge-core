@@ -122,6 +122,25 @@ def test_advanced_help_hides_technical_flags_in_normal_help(command: str, hidden
 
 
 @pytest.mark.parametrize(
+    ("command", "usage"),
+    [
+        ("enrich", "usage: noqlen-forge enrich [OPTIONS] path"),
+        ("metadata", "usage: noqlen-forge metadata [OPTIONS] path"),
+        ("cover", "usage: noqlen-forge cover [OPTIONS] path"),
+        ("lyrics", "usage: noqlen-forge lyrics [OPTIONS] path"),
+        ("analyze", "usage: noqlen-forge analyze [OPTIONS] path"),
+        ("jobs", "usage: noqlen-forge jobs [OPTIONS] COMMAND ..."),
+    ],
+)
+def test_help_uses_concise_usage_lines(command: str, usage: str, capsys) -> None:
+    normal = _command_help(command, capsys)
+
+    assert usage in normal
+    assert "[--provider" not in normal.splitlines()[0]
+    assert "[--bpm-range" not in normal.splitlines()[0]
+
+
+@pytest.mark.parametrize(
     ("command", "shown_flag", "section"),
     [
         ("enrich", "--provider", "Provider options:"),
@@ -141,6 +160,16 @@ def test_advanced_help_shows_technical_flags_in_sections(command: str, shown_fla
     assert "Output/debug options:" in advanced
 
 
+def test_advanced_help_includes_useful_flag_descriptions(capsys) -> None:
+    advanced = _advanced_command_help("enrich", capsys)
+    normalized = " ".join(advanced.split())
+
+    assert "Restrict metadata lookup to a provider" in normalized
+    assert "Minimum provider confidence accepted for metadata decisions" in normalized
+    assert "Prefer a specific cover-art source" in normalized
+    assert "Show raw Last.fm provider output for debugging" in normalized
+
+
 def test_advanced_help_accepts_help_before_advanced(capsys) -> None:
     advanced = _advanced_command_help("enrich", capsys, advanced_first=False)
 
@@ -155,17 +184,36 @@ def test_safety_and_common_flags_remain_visible_in_normal_help(capsys) -> None:
         assert flag in normal
 
 
+def test_normal_help_examples_do_not_start_with_apply(capsys) -> None:
+    for command in ("enrich", "cover", "lyrics", "metadata", "organize", "import", "analyze"):
+        normal = _command_help(command, capsys)
+        examples = normal.split("Examples:", 1)[1] if "Examples:" in normal else ""
+
+        assert "--apply" not in examples
+
+
 def test_advanced_flags_remain_parseable_without_advanced_help() -> None:
     parser = cli.build_parser()
 
     enrich = parser.parse_args(["enrich", ".", "--provider", "musicbrainz", "--bpm-range", "80", "160"])
     metadata = parser.parse_args(["metadata", ".", "--allow-more-providers"])
     cover = parser.parse_args(["cover", ".", "--cover-source", "itunes"])
+    lyrics = parser.parse_args(["lyrics", ".", "--providers", "local", "--save-txt"])
 
     assert enrich.provider == ["musicbrainz"]
     assert enrich.bpm_range == [80.0, 160.0]
     assert metadata.allow_more_providers is True
     assert cover.cover_source == ["itunes"]
+    assert lyrics.providers == "local"
+    assert lyrics.save_txt is True
+
+
+def test_commands_without_advanced_sections_do_not_gain_advanced_hint(capsys) -> None:
+    for command in ("replaygain", "batch", "cleanup", "set-style", "candidates", "apply-mbid", "fields", "jobs"):
+        output = _advanced_command_help(command, capsys)
+
+        assert "Output/debug options:" not in output
+        assert "--advanced" not in output
 
 
 def test_sparse_command_help_describes_safety_and_scope(capsys) -> None:

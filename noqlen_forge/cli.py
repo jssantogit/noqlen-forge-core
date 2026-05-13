@@ -192,6 +192,7 @@ def _add_jobs_parser(subparsers: argparse._SubParsersAction) -> None:
         "jobs",
         help="Inspect resumable/cancelable workflow jobs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge jobs [OPTIONS] COMMAND ...",
         description="""Jobs are persistent records for long workflows.
 
 Execution is still synchronous in this release. Cancellation is cooperative and resume is available only for explicitly resumable job kinds.
@@ -203,7 +204,7 @@ Execution is still synchronous in this release. Cancellation is cooperative and 
   noqlen-forge jobs cancel JOB_ID
   noqlen-forge jobs resume JOB_ID
   noqlen-forge jobs prune
-  noqlen-forge jobs prune --apply
+  noqlen-forge jobs prune
 """,
     )
     jobs_sub = jobs.add_subparsers(dest="jobs_command", required=True)
@@ -584,6 +585,7 @@ Reports are read-only. They do not write tags, alter the SQLite database, move/c
         "maintain",
         help="Advanced sync/repair tools",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge maintain [OPTIONS] COMMAND ...",
         description="""Advanced maintenance tools.
 
 `maintain sync` compares SQLite records and file tags. `maintain rewrite` canonicalizes configured textual metadata rules. `maintain repair` safely repairs SQLite inconsistencies. These workflows are dry-run by default; --apply is required to write database rows or tags. Automated validation refuses --apply outside MusicLab.
@@ -591,11 +593,8 @@ Reports are read-only. They do not write tags, alter the SQLite database, move/c
         epilog="""Examples:
   noqlen-forge maintain sync "$ALBUM" --tags-to-db
   noqlen-forge maintain sync "$ALBUM" --db-to-tags
-  noqlen-forge maintain sync "$ALBUM" --db-to-tags --apply
   noqlen-forge maintain rewrite "$ALBUM"
-  noqlen-forge maintain rewrite "$ALBUM" --field style --apply
   noqlen-forge maintain repair missing-files
-  noqlen-forge maintain repair untracked "$INCOMING" --apply
   noqlen-forge maintain repair db
 """,
     )
@@ -669,6 +668,7 @@ Export is read-only except for the optional output file. It does not write tags,
         "fields",
         help="List supported metadata fields without writing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge fields [OPTIONS]",
         description="""List metadata fields understood by Noqlen Forge Core.
 
 Read-only. This is a reference command for scripts, configuration, reports and advanced troubleshooting. It does not scan files, write tags, alter the SQLite database, or call providers.
@@ -766,26 +766,27 @@ Missing Key is WARN-level optional metadata, not a critical failure. Native key 
         "organize",
         help="Copy/move files into a library layout; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge organize [OPTIONS] path",
         description="""Safely plan and organize files into a library layout.
 
 Dry-run is the default. With --apply it copies or moves files and may update operation records. Automated validation must target MusicLab for --apply.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
 """,
         epilog="""Examples:
   noqlen-forge organize "$ALBUM" --library "$LIBRARY"
-  noqlen-forge organize "$ALBUM" --library "$LIBRARY" --apply
-  noqlen-forge organize "$ALBUM" --move --library "$LIBRARY" --apply
+  noqlen-forge organize "$ALBUM" --move --library "$LIBRARY"
 """,
     )
-    organize.add_argument("path", type=Path)
-    organize.add_argument("--apply", action="store_true")
+    organize.add_argument("path", type=Path, help="Album, track or folder to organize")
+    organize.add_argument("--apply", action="store_true", help="Apply planned copy or move operations after review")
     organize_mode = organize.add_mutually_exclusive_group()
-    organize_mode.add_argument("--copy", action="store_true")
-    organize_mode.add_argument("--move", action="store_true")
-    organize.add_argument("--library", type=Path)
-    _add_advanced_argument(organize, "Maintenance options", "--template")
-    _add_advanced_argument(organize, "Maintenance options", "--singleton-template")
-    _add_advanced_argument(organize, "Maintenance options", "--conflict-policy", choices=("review", "skip", "rename"))
-    organize.add_argument("--verbose", action="store_true")
+    organize_mode.add_argument("--copy", action="store_true", help="Plan copy operations into the target library")
+    organize_mode.add_argument("--move", action="store_true", help="Plan move operations instead of copies")
+    organize.add_argument("--library", type=Path, help="Target library root for planned organization")
+    _add_advanced_argument(organize, "Maintenance options", "--template", help="Override the configured album path template")
+    _add_advanced_argument(organize, "Maintenance options", "--singleton-template", help="Override the configured single-track path template")
+    _add_advanced_argument(organize, "Maintenance options", "--conflict-policy", choices=("review", "skip", "rename"), help="Choose how path conflicts are handled")
+    organize.add_argument("--verbose", action="store_true", help="Show detailed organization decisions")
     _add_advanced_help_switch(organize)
     _add_debug_argument(organize)
 
@@ -793,30 +794,31 @@ Dry-run is the default. With --apply it copies or moves files and may update ope
         "import",
         help="Full safe import workflow; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge import [OPTIONS] path",
         description="""Run the safe import workflow for incoming files.
 
 Dry-run is the default. With --apply it may enrich tags, copy/move files into the library, and record operations in SQLite. Automated validation must target MusicLab for --apply.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
 """,
         epilog="""Examples:
   noqlen-forge import "$INCOMING" --library "$LIBRARY"
-  noqlen-forge import "$INCOMING" --library "$LIBRARY" --apply
-  noqlen-forge import "$INCOMING" --move --library "$LIBRARY" --apply
+  noqlen-forge import "$INCOMING" --move --library "$LIBRARY"
 """,
     )
-    import_parser.add_argument("path", type=Path)
-    import_parser.add_argument("--apply", action="store_true")
-    import_parser.add_argument("--library", type=Path)
+    import_parser.add_argument("path", type=Path, help="Incoming folder or file to import")
+    import_parser.add_argument("--apply", action="store_true", help="Apply planned enrichment and organization writes after review")
+    import_parser.add_argument("--library", type=Path, help="Target library root for planned organization")
     import_mode = import_parser.add_mutually_exclusive_group()
-    import_mode.add_argument("--copy", action="store_true")
-    import_mode.add_argument("--move", action="store_true")
-    import_parser.add_argument("--replaygain", action="store_true")
-    _add_advanced_argument(import_parser, "Stage selection", "--skip-enrich", action="store_true")
-    _add_advanced_argument(import_parser, "Stage selection", "--skip-cover", action="store_true")
-    _add_advanced_argument(import_parser, "Stage selection", "--skip-lyrics", action="store_true")
-    _add_advanced_argument(import_parser, "Stage selection", "--skip-organize", action="store_true")
-    _add_advanced_argument(import_parser, "Maintenance options", "--allow-review", action="store_true")
-    import_parser.add_argument("--force", action="store_true")
-    import_parser.add_argument("--verbose", action="store_true")
+    import_mode.add_argument("--copy", action="store_true", help="Plan copy operations into the target library")
+    import_mode.add_argument("--move", action="store_true", help="Plan move operations instead of copies")
+    import_parser.add_argument("--replaygain", action="store_true", help="Include ReplayGain analysis in the import workflow")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-enrich", action="store_true", help="Skip enrichment during import")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-cover", action="store_true", help="Skip cover-art work during import enrichment")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-lyrics", action="store_true", help="Skip lyrics work during import enrichment")
+    _add_advanced_argument(import_parser, "Stage selection", "--skip-organize", action="store_true", help="Skip organization after import enrichment")
+    _add_advanced_argument(import_parser, "Maintenance options", "--allow-review", action="store_true", help="Allow REVIEW results to be recorded during import")
+    _add_advanced_argument(import_parser, "Force/refresh options", "--force", action="store_true", help="Allow replacement where the workflow permits it")
+    import_parser.add_argument("--verbose", action="store_true", help="Show detailed import decisions")
     _add_advanced_help_switch(import_parser)
     _add_debug_argument(import_parser)
 
@@ -824,15 +826,21 @@ Dry-run is the default. With --apply it may enrich tags, copy/move files into th
         "metadata",
         help="Fetch provider metadata; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge metadata [OPTIONS] path",
         description="""Fetch metadata from configured providers and plan tag updates.
 
 Dry-run is the default and is intended for review first. With --apply, accepted plans may write supported metadata tags to audio files. This command can call external metadata services according to provider configuration.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge metadata "$ALBUM"
+  noqlen-forge metadata "$ALBUM" --dry-run
 """,
     )
     metadata.add_argument("path", type=Path, help="Album, single, track or folder to inspect")
     metadata.add_argument("--apply", action="store_true", help="Write accepted metadata plans to tags")
     metadata.add_argument("--dry-run", action="store_true", help="Review planned metadata changes without writing; this is the default")
-    metadata.add_argument("--force", action="store_true", help="Allow replacement of existing supported fields where the workflow permits it")
+    _add_advanced_argument(metadata, "Force/refresh options", "--force", action="store_true", help="Allow replacement of existing supported fields where the workflow permits it")
     _add_advanced_argument(metadata, "Provider options", "--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"), help="Use a specific provider; may be repeated")
     _add_advanced_argument(metadata, "Provider options", "--allow-more-providers", action="store_true", help="Allow provider fan-out beyond the configured active-provider limit")
     _add_advanced_argument(metadata, "Metadata matching options", "--min-confidence", choices=("high", "medium", "low"), help="Minimum confidence required before a provider match can be accepted")
@@ -847,6 +855,7 @@ Dry-run is the default and is intended for review first. With --apply, accepted 
         "batch",
         help="Process child album/single targets; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge batch [OPTIONS] path",
         description="""Run enrichment over child album/single targets in batches.
 
 Dry-run is the default and should be reviewed first. With --apply, each processed target follows the enrichment workflow and may write tags, cover, lyrics or audio feature fields according to the selected workflow options. This is an advanced convenience command for curated incoming folders.
@@ -862,6 +871,7 @@ Dry-run is the default and should be reviewed first. With --apply, each processe
         "cleanup",
         help="Clean empty or malformed metadata; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge cleanup [OPTIONS] path",
         description="""Plan cleanup of empty or malformed metadata values in supported audio tags.
 
 Dry-run is the default and should be reviewed before applying. With --apply, cleanup writes tag changes to audio files. It does not move, copy or delete music files.
@@ -872,47 +882,73 @@ Dry-run is the default and should be reviewed before applying. With --apply, cle
     cleanup.add_argument("--dry-run", action="store_true", help="Review planned cleanup changes without writing; this is the default")
     cleanup.add_argument("--verbose", action="store_true", help="Show detailed cleanup decisions")
 
-    cover = subparsers.add_parser("cover", help="Detect, fetch, save and embed album cover; dry-run unless --apply")
-    cover.add_argument("path", type=Path)
-    cover.add_argument("--apply", action="store_true")
-    cover.add_argument("--force", action="store_true")
-    cover.add_argument("--embed-cover", dest="embed_cover", action="store_true", default=None)
-    cover.add_argument("--no-embed-cover", dest="embed_cover", action="store_false")
-    cover.add_argument("--save-folder-cover", dest="save_folder_cover", action="store_true", default=None)
-    cover.add_argument("--no-folder-cover", dest="save_folder_cover", action="store_false")
-    _add_advanced_argument(cover, "Cover options", "--force-folder-cover", action="store_true")
-    _add_advanced_argument(cover, "Cover options", "--remove-folder-cover", action="store_true")
-    _add_advanced_argument(cover, "Provider options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
-    _add_advanced_argument(cover, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"))
-    cover.add_argument("--verbose", action="store_true")
+    cover = subparsers.add_parser(
+        "cover",
+        help="Detect, fetch, save and embed album cover; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge cover [OPTIONS] path",
+        description="""Plan cover-art detection, fetching, sidecar saving and embedding.
+
+Dry-run is the default posture. Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge cover "$ALBUM"
+  noqlen-forge cover "$ALBUM" --save-folder-cover
+""",
+    )
+    cover.add_argument("path", type=Path, help="Album, track or folder to inspect")
+    cover.add_argument("--apply", action="store_true", help="Apply planned cover-art writes after review")
+    _add_advanced_argument(cover, "Force/refresh options", "--force", action="store_true", help="Refresh cover-art decisions where the workflow permits it")
+    cover.add_argument("--embed-cover", dest="embed_cover", action="store_true", default=None, help="Plan embedded cover-art writes")
+    cover.add_argument("--no-embed-cover", dest="embed_cover", action="store_false", help="Skip embedded cover-art writes")
+    cover.add_argument("--save-folder-cover", dest="save_folder_cover", action="store_true", default=None, help="Plan a folder cover image sidecar")
+    cover.add_argument("--no-folder-cover", dest="save_folder_cover", action="store_false", help="Skip folder cover sidecar writes")
+    _add_advanced_argument(cover, "Cover options", "--force-folder-cover", action="store_true", help="Refresh the folder cover decision even when one exists")
+    _add_advanced_argument(cover, "Cover options", "--remove-folder-cover", action="store_true", help="Plan removal of stale folder cover sidecars when supported")
+    _add_advanced_argument(cover, "Provider options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"), help="Prefer a specific cover-art source; may be repeated")
+    _add_advanced_argument(cover, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"), help="Minimum confidence accepted for cover-art decisions")
+    cover.add_argument("--verbose", action="store_true", help="Show detailed cover-art decisions")
     _add_advanced_help_switch(cover)
     _add_debug_argument(cover)
 
-    lyrics = subparsers.add_parser("lyrics", help="Detect, fetch, save and embed lyrics; dry-run unless --apply")
-    lyrics.add_argument("path", nargs="?", type=Path)
-    lyrics.add_argument("--apply", action="store_true")
-    lyrics.add_argument("--force", action="store_true")
-    lyrics.add_argument("--embed-lyrics", dest="embed_lyrics", action="store_true", default=None)
-    lyrics.add_argument("--no-embed-lyrics", dest="embed_lyrics", action="store_false")
-    lyrics.add_argument("--save-lrc", dest="save_lrc", action="store_true", default=None)
-    lyrics.add_argument("--no-save-lrc", dest="save_lrc", action="store_false")
-    lyrics.add_argument("--write-sidecar-lrc", dest="save_lrc", action="store_true")
-    lyrics.add_argument("--embed", dest="embed_lyrics", action="store_true")
-    lyrics.add_argument("--save-txt", dest="save_txt", action="store_true", default=None)
-    lyrics.add_argument("--no-save-txt", dest="save_txt", action="store_false")
-    lyrics.add_argument("--prefer-synced", dest="prefer_synced", action="store_true", default=None)
-    lyrics.add_argument("--prefer-unsynced", dest="prefer_synced", action="store_false")
-    lyrics.add_argument("--unsynced", dest="prefer_synced", action="store_false")
-    lyrics.add_argument("--prefer-local", dest="prefer_local", action="store_true", default=None)
-    lyrics.add_argument("--no-prefer-local", dest="prefer_local", action="store_false")
-    _add_advanced_argument(lyrics, "Lyrics options", "--allow-instrumental", action="store_true", default=None)
-    _add_advanced_argument(lyrics, "Lyrics options", "--allow-empty", action="store_true", default=None)
-    _add_advanced_argument(lyrics, "Provider options", "--provider", dest="lyrics_source", action="append")
-    _add_advanced_argument(lyrics, "Provider options", "--lyrics-source", action="append")
-    _add_advanced_argument(lyrics, "Provider options", "--providers")
-    _add_advanced_argument(lyrics, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"))
-    _add_advanced_argument(lyrics, "Output/debug options", "--format", choices=("text", "json"), default="text")
-    lyrics.add_argument("--verbose", action="store_true")
+    lyrics = subparsers.add_parser(
+        "lyrics",
+        help="Detect, fetch, save and embed lyrics; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge lyrics [OPTIONS] path",
+        description="""Plan lyrics discovery, sidecar saving and embedding.
+
+Dry-run is the default posture. Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries. Use `noqlen-forge lyrics providers` to list configured providers.
+""",
+        epilog="""Examples:
+  noqlen-forge lyrics "$ALBUM"
+  noqlen-forge lyrics providers
+""",
+    )
+    lyrics.add_argument("path", nargs="?", type=Path, help="Album, track, folder, or `providers` to inspect provider setup")
+    lyrics.add_argument("--apply", action="store_true", help="Apply planned lyrics writes after review")
+    _add_advanced_argument(lyrics, "Force/refresh options", "--force", action="store_true", help="Refresh lyrics decisions where the workflow permits it")
+    lyrics.add_argument("--embed-lyrics", dest="embed_lyrics", action="store_true", default=None, help="Plan embedded lyrics writes")
+    lyrics.add_argument("--no-embed-lyrics", dest="embed_lyrics", action="store_false", help="Skip embedded lyrics writes")
+    lyrics.add_argument("--save-lrc", dest="save_lrc", action="store_true", default=None, help="Plan synced .lrc sidecar writes")
+    lyrics.add_argument("--no-save-lrc", dest="save_lrc", action="store_false", help="Skip synced .lrc sidecar writes")
+    _add_advanced_argument(lyrics, "Lyrics options", "--write-sidecar-lrc", dest="save_lrc", action="store_true", help="Alias for --save-lrc")
+    _add_advanced_argument(lyrics, "Lyrics options", "--embed", dest="embed_lyrics", action="store_true", help="Alias for --embed-lyrics")
+    _add_advanced_argument(lyrics, "Lyrics options", "--save-txt", dest="save_txt", action="store_true", default=None, help="Plan plain-text lyrics sidecar writes")
+    _add_advanced_argument(lyrics, "Lyrics options", "--no-save-txt", dest="save_txt", action="store_false", help="Skip plain-text lyrics sidecar writes")
+    lyrics.add_argument("--prefer-synced", dest="prefer_synced", action="store_true", default=None, help="Prefer synced lyrics when available")
+    lyrics.add_argument("--prefer-unsynced", dest="prefer_synced", action="store_false", help="Prefer unsynced lyrics when available")
+    _add_advanced_argument(lyrics, "Lyrics options", "--unsynced", dest="prefer_synced", action="store_false", help="Alias for --prefer-unsynced")
+    lyrics.add_argument("--prefer-local", dest="prefer_local", action="store_true", default=None, help="Prefer local lyrics before provider lookups")
+    _add_advanced_argument(lyrics, "Lyrics options", "--no-prefer-local", dest="prefer_local", action="store_false", help="Do not prefer local lyrics before provider lookups")
+    _add_advanced_argument(lyrics, "Lyrics options", "--allow-instrumental", action="store_true", default=None, help="Accept provider results marked as instrumental")
+    _add_advanced_argument(lyrics, "Lyrics options", "--allow-empty", action="store_true", default=None, help="Accept empty lyrics results when a provider explicitly returns them")
+    _add_advanced_argument(lyrics, "Provider options", "--provider", dest="lyrics_source", action="append", help="Prefer a specific lyrics provider; may be repeated")
+    _add_advanced_argument(lyrics, "Provider options", "--lyrics-source", action="append", help="Prefer a specific lyrics source; may be repeated")
+    _add_advanced_argument(lyrics, "Provider options", "--providers", help="Restrict lyrics lookup to a provider list")
+    _add_advanced_argument(lyrics, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"), help="Minimum confidence accepted for lyrics decisions")
+    _add_advanced_argument(lyrics, "Output/debug options", "--format", choices=("text", "json"), default="text", help="Choose text or JSON output")
+    lyrics.add_argument("--verbose", action="store_true", help="Show detailed lyrics decisions")
     _add_advanced_help_switch(lyrics)
     _add_debug_argument(lyrics)
 
@@ -920,9 +956,15 @@ Dry-run is the default and should be reviewed before applying. With --apply, cle
         "analyze",
         help="Analyze optional local audio features; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge analyze [OPTIONS] path",
         description="""Analyze optional local audio features and enrichment signals.
 
 Dry-run is the default. With --apply, selected analysis results may write supported tags or local metadata fields. Some options may call configured external services, such as Last.fm. Key detection uses native optional backends: `portable_basic` is the lightweight default, `disabled` skips analysis, and `auto` follows config order.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge analyze "$ALBUM" --bpm
+  noqlen-forge analyze "$ALBUM" --key --features
 """,
     )
     analyze.add_argument("path", type=Path, help="Album, track or folder to analyze")
@@ -934,41 +976,59 @@ Dry-run is the default. With --apply, selected analysis results may write suppor
     analyze.add_argument("--lastfm-tags", action="store_true", help="Fetch Last.fm tags when configured")
     analyze.add_argument("--mood", action="store_true", help="Infer mood metadata from available signals")
     _add_advanced_argument(analyze, "Provider options", "--skip-lastfm", action="store_true", help="Skip Last.fm calls even when Last.fm options are selected")
-    _add_advanced_argument(analyze, "Audio analysis options", "--energy", action="store_true")
-    _add_advanced_argument(analyze, "Audio analysis options", "--danceability", action="store_true")
-    _add_advanced_argument(analyze, "Audio analysis options", "--skip-existing", action="store_true")
-    _add_advanced_argument(analyze, "Force/refresh options", "--force", action="store_true")
-    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
-    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp")
-    _add_advanced_argument(analyze, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium")
-    _add_advanced_argument(analyze, "Force/refresh options", "--force-lastfm", action="store_true")
-    _add_advanced_argument(analyze, "Force/refresh options", "--force-mood", action="store_true")
-    _add_advanced_argument(analyze, "Provider options", "--lastfm-min-count", type=int, default=3)
-    _add_advanced_argument(analyze, "Provider options", "--lastfm-max-tags", type=int, default=10)
-    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-debug", action="store_true")
-    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-raw", action="store_true")
-    _add_advanced_argument(analyze, "Provider options", "--lastfm-no-fallback", action="store_true")
-    analyze.add_argument("--no-progress", action="store_true")
-    analyze.add_argument("--no-spinner", action="store_true")
-    analyze.add_argument("--plain", action="store_true")
+    _add_advanced_argument(analyze, "Audio analysis options", "--energy", action="store_true", help="Analyze energy when local feature extraction supports it")
+    _add_advanced_argument(analyze, "Audio analysis options", "--danceability", action="store_true", help="Analyze danceability when local feature extraction supports it")
+    _add_advanced_argument(analyze, "Audio analysis options", "--skip-existing", action="store_true", help="Skip tracks that already have the requested analysis fields")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force", action="store_true", help="Refresh analysis decisions even when existing data is present")
+    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180), help="Limit acceptable BPM detection range")
+    _add_advanced_argument(analyze, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp", help="Choose BPM rounding precision")
+    _add_advanced_argument(analyze, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium", help="Minimum confidence for audio feature decisions")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force-lastfm", action="store_true", help="Refresh Last.fm decisions even when existing data is present")
+    _add_advanced_argument(analyze, "Force/refresh options", "--force-mood", action="store_true", help="Refresh mood decisions even when existing data is present")
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-min-count", type=int, default=3, help="Minimum Last.fm tag count accepted for tag decisions")
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-max-tags", type=int, default=10, help="Maximum Last.fm tags considered for decisions")
+    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-debug", action="store_true", help="Show Last.fm diagnostic details")
+    _add_advanced_argument(analyze, "Output/debug options", "--lastfm-raw", action="store_true", help="Show raw Last.fm provider output for debugging")
+    _add_advanced_argument(analyze, "Provider options", "--lastfm-no-fallback", action="store_true", help="Disable Last.fm fallback behavior for this run")
+    analyze.add_argument("--no-progress", action="store_true", help="Disable progress rendering")
+    analyze.add_argument("--no-spinner", action="store_true", help="Disable spinner rendering")
+    analyze.add_argument("--plain", action="store_true", help="Use plain output for logs or scripts")
     _add_advanced_help_switch(analyze)
 
-    replaygain = subparsers.add_parser("replaygain", help="Analyze ReplayGain/loudness; dry-run unless --apply")
-    replaygain.add_argument("path", type=Path)
-    replaygain.add_argument("--apply", action="store_true")
-    replaygain.add_argument("--force", action="store_true")
-    replaygain.add_argument("--album", action="store_true")
-    replaygain.add_argument("--tracks", action="store_true")
-    replaygain.add_argument("--verbose", action="store_true")
+    replaygain = subparsers.add_parser(
+        "replaygain",
+        help="Analyze ReplayGain/loudness; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge replaygain [OPTIONS] path",
+        description="""Plan ReplayGain/loudness analysis for supported audio files.
+
+Dry-run is the default posture. Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge replaygain "$ALBUM"
+  noqlen-forge replaygain "$ALBUM" --album
+""",
+    )
+    replaygain.add_argument("path", type=Path, help="Album, track or folder to analyze")
+    replaygain.add_argument("--apply", action="store_true", help="Apply planned ReplayGain writes after review")
+    replaygain.add_argument("--force", action="store_true", help="Refresh ReplayGain analysis where the workflow permits it")
+    replaygain.add_argument("--album", action="store_true", help="Analyze album-level ReplayGain")
+    replaygain.add_argument("--tracks", action="store_true", help="Analyze track-level ReplayGain")
+    replaygain.add_argument("--verbose", action="store_true", help="Show detailed ReplayGain decisions")
     _add_debug_argument(replaygain)
 
     set_style = subparsers.add_parser(
         "set-style",
         help="Set STYLE manually; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge set-style [OPTIONS] path style",
         description="""Plan a manual STYLE tag value for supported audio files.
 
 Dry-run is the default and should be reviewed first. With --apply, this writes the STYLE tag to audio files that do not already have STYLE unless --force is used.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge set-style "$ALBUM" "Progressive Metal"
 """,
     )
     set_style.add_argument("path", type=Path, help="Album, track or folder to update")
@@ -981,6 +1041,7 @@ Dry-run is the default and should be reviewed first. With --apply, this writes t
         "candidates",
         help="List MusicBrainz release candidates without writing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge candidates [OPTIONS] path",
         description="""List ranked MusicBrainz release candidates for a target.
 
 Read-only. This command reads local tags and calls MusicBrainz, then prints candidate IDs for review. It does not write tags, alter the SQLite database, or modify files.
@@ -992,9 +1053,15 @@ Read-only. This command reads local tags and calls MusicBrainz, then prints cand
         "apply-mbid",
         help="Apply MusicBrainz IDs; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge apply-mbid [OPTIONS] path",
         description="""Plan MusicBrainz ID tag updates from a selected or ranked release.
 
 Dry-run is the default and should be reviewed first. With --apply, this writes MusicBrainz identifier tags to audio files. Use --release-id when you have already reviewed candidates and want a specific release.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
+""",
+        epilog="""Examples:
+  noqlen-forge candidates "$ALBUM"
+  noqlen-forge apply-mbid "$ALBUM" --release-id RELEASE_MBID
 """,
     )
     apply_mbid.add_argument("path", type=Path, help="Album, single, track or folder to update")
@@ -1007,72 +1074,73 @@ Dry-run is the default and should be reviewed first. With --apply, this writes M
         "enrich",
         help="Enrich tags, cover, lyrics and audio features; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="noqlen-forge enrich [OPTIONS] path",
         description="""Run the safe native enrichment pipeline.
 
 Dry-run is the default. --apply is required before writing tags, cover, lyrics or audio feature fields. Existing valid tags are not overwritten without explicit force flags.
 The flow uses Noqlen Forge Core native providers through the CLI. AcoustID Identify uses fpcalc/Chromaprint when configured. Key detection is optional and skips cleanly when no configured backend is available.
+Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
 """,
         epilog="""Examples:
   noqlen-forge enrich "$ALBUM" --full
-  noqlen-forge enrich "$ALBUM" --full --apply
   noqlen-forge enrich "$ALBUM" --cover --lyrics
 """,
     )
-    enrich.add_argument("path", type=Path)
-    enrich.add_argument("--apply", action="store_true")
-    enrich.add_argument("--dry-run", action="store_true")
-    enrich.add_argument("--force", action="store_true")
-    enrich.add_argument("--full", action="store_true")
-    _add_advanced_argument(enrich, "Metadata matching options", "--acoustid-identify", action="store_true")
-    _add_advanced_argument(enrich, "Metadata matching options", "--skip-acoustid-identify", action="store_true")
-    enrich.add_argument("--analyze-bpm", action="store_true")
+    enrich.add_argument("path", type=Path, help="Album, track or folder to enrich")
+    enrich.add_argument("--apply", action="store_true", help="Apply planned writes after review")
+    enrich.add_argument("--dry-run", action="store_true", help="Preview changes without writing; this is the default posture")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force", action="store_true", help="Allow refresh or replacement where selected stages permit it")
+    enrich.add_argument("--full", action="store_true", help="Run the standard full workflow preset")
+    _add_advanced_argument(enrich, "Metadata matching options", "--acoustid-identify", action="store_true", help="Use AcoustID fingerprint identification when configured")
+    _add_advanced_argument(enrich, "Metadata matching options", "--skip-acoustid-identify", action="store_true", help="Skip AcoustID fingerprint identification")
+    enrich.add_argument("--analyze-bpm", action="store_true", help="Include BPM analysis")
     enrich.add_argument("--analyze-key", action="store_true", help="Run optional key detection; unavailable backends are skipped")
-    enrich.add_argument("--analyze-features", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-bpm", action="store_true")
+    enrich.add_argument("--analyze-features", action="store_true", help="Include local audio feature analysis")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-bpm", action="store_true", help="Skip BPM analysis in --full")
     _add_advanced_argument(enrich, "Stage selection", "--skip-key", action="store_true", help="Skip optional key detection in --full")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-features", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--with-lastfm", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--with-mood", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-lastfm", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-mood", action="store_true")
-    enrich.add_argument("--cover", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-cover", action="store_true")
-    enrich.add_argument("--lyrics", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-lyrics", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--metadata-providers", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-metadata-providers", action="store_true")
-    enrich.add_argument("--replaygain", action="store_true")
-    _add_advanced_argument(enrich, "Stage selection", "--skip-replaygain", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-cover", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-lyrics", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-acoustid", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-identity", action="store_true")
-    _add_advanced_argument(enrich, "Provider options", "--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"))
-    _add_advanced_argument(enrich, "Provider options", "--allow-more-providers", action="store_true")
-    _add_advanced_argument(enrich, "Metadata matching options", "--min-confidence", choices=("high", "medium", "low"))
-    _add_advanced_argument(enrich, "Cover options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"))
-    _add_advanced_argument(enrich, "Lyrics options", "--lyrics-source", action="append", choices=("local", "lrclib", "genius", "musixmatch", "audd"))
-    _add_advanced_argument(enrich, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"))
-    _add_advanced_argument(enrich, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"))
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-bpm", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-key", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-features", action="store_true")
-    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180))
-    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp")
-    _add_advanced_argument(enrich, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-lastfm", action="store_true")
-    _add_advanced_argument(enrich, "Force/refresh options", "--force-mood", action="store_true")
-    _add_advanced_argument(enrich, "Provider options", "--lastfm-min-count", type=int, default=3)
-    _add_advanced_argument(enrich, "Provider options", "--lastfm-max-tags", type=int, default=10)
-    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-debug", action="store_true")
-    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-raw", action="store_true")
-    _add_advanced_argument(enrich, "Provider options", "--lastfm-no-fallback", action="store_true")
-    enrich.add_argument("--verbose", action="store_true")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-features", action="store_true", help="Skip audio feature analysis in --full")
+    _add_advanced_argument(enrich, "Stage selection", "--with-lastfm", action="store_true", help="Include Last.fm tag enrichment")
+    _add_advanced_argument(enrich, "Stage selection", "--with-mood", action="store_true", help="Include mood inference")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-lastfm", action="store_true", help="Skip Last.fm calls even when selected by presets")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-mood", action="store_true", help="Skip mood inference even when selected by presets")
+    enrich.add_argument("--cover", action="store_true", help="Include cover-art enrichment")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-cover", action="store_true", help="Skip cover-art work in --full")
+    enrich.add_argument("--lyrics", action="store_true", help="Include lyrics enrichment")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-lyrics", action="store_true", help="Skip lyrics work in --full")
+    _add_advanced_argument(enrich, "Stage selection", "--metadata-providers", action="store_true", help="Include provider metadata lookup")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-metadata-providers", action="store_true", help="Skip provider metadata lookup")
+    enrich.add_argument("--replaygain", action="store_true", help="Include ReplayGain analysis")
+    _add_advanced_argument(enrich, "Stage selection", "--skip-replaygain", action="store_true", help="Skip ReplayGain analysis in --full")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-cover", action="store_true", help="Refresh cover-art decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-lyrics", action="store_true", help="Refresh lyrics decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-acoustid", action="store_true", help="Refresh AcoustID decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-identity", action="store_true", help="Refresh identity decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Provider options", "--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"), help="Restrict metadata lookup to a provider; may be repeated")
+    _add_advanced_argument(enrich, "Provider options", "--allow-more-providers", action="store_true", help="Allow provider fan-out beyond the configured active-provider limit")
+    _add_advanced_argument(enrich, "Metadata matching options", "--min-confidence", choices=("high", "medium", "low"), help="Minimum provider confidence accepted for metadata decisions")
+    _add_advanced_argument(enrich, "Cover options", "--cover-source", action="append", choices=("local", "musicbrainz", "itunes", "deezer", "spotify"), help="Prefer a specific cover-art source; may be repeated")
+    _add_advanced_argument(enrich, "Lyrics options", "--lyrics-source", action="append", choices=("local", "lrclib", "genius", "musixmatch", "audd"), help="Prefer a specific lyrics source; may be repeated")
+    _add_advanced_argument(enrich, "Cover options", "--min-cover-confidence", choices=("high", "medium", "low"), help="Minimum confidence accepted for cover-art decisions")
+    _add_advanced_argument(enrich, "Lyrics options", "--min-lyrics-confidence", choices=("high", "medium", "low"), help="Minimum confidence accepted for lyrics decisions")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-bpm", action="store_true", help="Refresh BPM decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-key", action="store_true", help="Refresh key decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-features", action="store_true", help="Refresh audio feature decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-range", nargs=2, type=float, metavar=("MIN", "MAX"), default=(70, 180), help="Limit acceptable BPM detection range")
+    _add_advanced_argument(enrich, "Audio analysis options", "--bpm-round", choices=("int", "1dp"), default="1dp", help="Choose BPM rounding precision")
+    _add_advanced_argument(enrich, "Audio analysis options", "--feature-confidence", choices=("low", "medium", "high"), default="medium", help="Minimum confidence for audio feature decisions")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-lastfm", action="store_true", help="Refresh Last.fm decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Force/refresh options", "--force-mood", action="store_true", help="Refresh mood decisions even when existing data is present")
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-min-count", type=int, default=3, help="Minimum Last.fm tag count accepted for tag decisions")
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-max-tags", type=int, default=10, help="Maximum Last.fm tags considered for decisions")
+    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-debug", action="store_true", help="Show Last.fm diagnostic details")
+    _add_advanced_argument(enrich, "Output/debug options", "--lastfm-raw", action="store_true", help="Show raw Last.fm provider output for debugging")
+    _add_advanced_argument(enrich, "Provider options", "--lastfm-no-fallback", action="store_true", help="Disable Last.fm fallback behavior for this run")
+    enrich.add_argument("--verbose", action="store_true", help="Show detailed enrichment decisions")
     _add_debug_argument(enrich)
-    enrich.add_argument("--no-progress", action="store_true")
-    enrich.add_argument("--no-spinner", action="store_true")
-    enrich.add_argument("--plain", action="store_true")
-    enrich.add_argument("--no-color", action="store_true")
+    enrich.add_argument("--no-progress", action="store_true", help="Disable progress rendering")
+    enrich.add_argument("--no-spinner", action="store_true", help="Disable spinner rendering")
+    enrich.add_argument("--plain", action="store_true", help="Use plain output for logs or scripts")
+    enrich.add_argument("--no-color", action="store_true", help="Disable color output")
     _add_advanced_help_switch(enrich)
 
     _hide_top_level_command_choices(subparsers)
