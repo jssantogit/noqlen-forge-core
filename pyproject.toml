@@ -7,6 +7,7 @@ name = "noqlen-forge"
 version = "0.1.0"
 description = "Noqlen Forge Core metadata and library-management workflows"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = ["mutagen>=1.46", "rich>=13"]
 keywords = ["audio", "metadata", "music", "musicbrainz", "navidrome", "noqlen"]
@@ -14,6 +15,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Topic :: Multimedia :: Sound/Audio",
