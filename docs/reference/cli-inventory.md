@@ -16,12 +16,60 @@ This inventory records the current public `noqlen-forge` command surface as obse
 | Category | Meaning |
 | --- | --- |
 | Read-only | Reads configuration, SQLite state, files, or external services without writing project state, tags, files, or server data. |
-| Reads library + writes reports/files | Reads local state and writes only explicit report/export/output files. |
+| Writes reports/files | Reads local state and writes only explicit report/export/output files. |
 | Writes Noqlen DB/state | Writes SQLite rows, saved definitions, job history, local backups, or other Noqlen state. |
-| Writes tags/files only with explicit apply | May rewrite tags, write sidecars, copy/move files, remove folder assets, or organize files only when explicit apply/write flags are used. |
+| Writes tags/files only with explicit apply/review | May rewrite tags, write sidecars, copy/move files, remove folder assets, or organize files only when explicit apply/write flags are used after review. |
 | External service/server write | Writes to Navidrome or another configured external service only with explicit apply/write flags. |
 | Developer/test-only | Maintainer validation or isolated MusicLab fixture workflows, not normal user library workflows. |
 | Compatibility alias | Top-level alias retained for compatibility/discovery; behavior is owned by another command family. |
+| Needs verification | Command help or current docs are too sparse to classify a write target with confidence. |
+
+## Command Safety Matrix
+
+Use this matrix to answer what a command family may affect before running it. A command can appear in more than one risk category because nested subcommands and flags have different write behavior. Dry-run/review must come before apply. Explicit apply/write modes are not first-run examples. Do not test command behavior first on a real personal music library; use MusicLab, fakes, or fixtures. Automated tests for external APIs and services should use mocks or fakes.
+
+| Command family | Safety categories | Conservative write-risk summary |
+| --- | --- | --- |
+| `config` | Read-only; Writes Noqlen DB/state | `path` and `show` are read-only. `init` writes local Forge configuration state, not music files. |
+| `db` | Read-only; Writes Noqlen DB/state | `path`, `status`, `query`, and `explain` are read-only. `init` writes database schema/state. `scan` is dry-run by default and writes database rows only with `--apply`. |
+| `audit` | Read-only; Writes Noqlen DB/state | Metadata inspection is read-only by default. `--job` records sanitized job state. |
+| `enrich` | Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Dry-run by default. Apply mode can write tags, cover/lyrics/audio feature fields, review/provider/job state, or related workflow state. |
+| `import` | Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Dry-run by default. Apply mode may enrich tags, copy/move files, organize files, and record database operations. |
+| `organize` | Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Dry-run by default. Apply mode may copy or move files and record operations. |
+| `query` | Read-only | Reads the local library database only. |
+| `report` | Read-only | Report subcommands are read-only and do not write tags, files, database rows, or server state. |
+| `export` | Read-only; Writes reports/files | Reads local state and writes only requested export/report output files when `--output` is used. |
+| `duplicates` | Compatibility alias; Read-only | Alias for `report duplicates`. |
+| `missing` | Compatibility alias; Read-only | Alias for `report missing`. |
+| `untracked` | Compatibility alias; Read-only | Alias for `report untracked`. |
+| `missing-files` | Compatibility alias; Read-only | Alias for `report missing-files`. |
+| `playlist` | Read-only; Writes reports/files; Writes Noqlen DB/state | Smart playlist list/show are read-only. Create/delete/rename write saved definitions only with apply intent. Export/refresh can write explicit playlist output files. |
+| `navidrome` | Read-only; Writes reports/files; Writes Noqlen DB/state; External service/server write | Ping/list/status/diff/export are read-oriented or output-file workflows. Backup may write local backup state with apply intent. Restore and push write to Navidrome only with apply intent. |
+| `maintain` | Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Sync/repair/rewrite are dry-run by default. Write target depends on subcommand and flags such as `--db-to-tags`, `--tags-to-db`, `--db-only`, and `--tags-only`. |
+| `review` | Read-only; Writes Noqlen DB/state | Listing/showing review items is read-only. Resolution writes local review state only with apply intent. |
+| `cover` | Writes tags/files only with explicit apply/review | Apply mode can embed cover art, save folder cover files, or remove folder cover files. |
+| `lyrics` | Writes tags/files only with explicit apply/review | Apply mode can embed lyrics or write sidecar/text lyrics files. Full lyrics should not be printed in public output. |
+| `replaygain` | Writes tags/files only with explicit apply/review | Dry-run by default. Apply mode can write ReplayGain/loudness tags. |
+| `metadata` | Needs verification; Writes tags/files only with explicit apply/review | Help says dry-run unless `--apply`, but target behavior remains underdocumented and should be reviewed command-by-command. |
+| `jobs` | Read-only; Writes Noqlen DB/state | List/status/show are read-only. Cancel/resume/prune can alter job state; prune is dry-run unless applied. |
+| `sync` | Compatibility alias; Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Alias for `maintain sync`; same dry-run/apply behavior. |
+| `fields` | Read-only | Lists supported metadata fields. |
+| `batch` | Needs verification; Writes Noqlen DB/state; Writes tags/files only with explicit apply/review | Dry-run unless `--apply`; likely delegates to write-capable workflows and needs clearer help. |
+| `cleanup` | Writes tags/files only with explicit apply/review | Dry-run unless applied; intended to remove empty/bad metadata. |
+| `analyze` | Writes tags/files only with explicit apply/review | Dry-run unless applied; can write optional audio feature fields when applied. |
+| `set-style` | Writes tags/files only with explicit apply/review | Dry-run unless applied; writes STYLE metadata when applied. |
+| `candidates` | Read-only | Lists MusicBrainz release candidates. |
+| `apply-mbid` | Writes tags/files only with explicit apply/review | Dry-run unless applied; writes MusicBrainz IDs when applied. |
+| `dev` | Developer/test-only | Smoke checks and MusicLab validation. MusicLab/fakes/fixtures only; not normal user-library workflows. |
+
+Safe discovery examples:
+
+```bash
+noqlen-forge db status
+noqlen-forge report missing --help
+noqlen-forge navidrome ratings diff --help
+noqlen-forge dev check --smoke
+```
 
 ## Top-Level Command Inventory
 
@@ -169,6 +217,7 @@ The `dev lab` tree includes `create`, `list`, `run`, `reset`, and `doctor`. The 
 - Top-level help remains long because it includes workflow commands, focused tools, aliases, and contributor commands in one command list.
 - Compatibility aliases increase discovery noise and should be accounted for in future help simplification without breaking compatibility.
 - `metadata`, `batch`, `cleanup`, `analyze`, `set-style`, `candidates`, `apply-mbid`, `fields`, and `jobs` need better docs/help review.
+- Navidrome playlist `diff` and `push-smart` need deeper safety examples around output files, identity matching, and server writes.
 - `review`, `maintain repair`, and several advanced workflows use positional passthrough shapes that are harder to discover from help alone.
 - Dry-run flag behavior needs clearer documentation across commands that expose both `--apply` and `--dry-run`.
 - Commands with optional explicit output files should consistently state whether they write only the requested output file or also update local state.
