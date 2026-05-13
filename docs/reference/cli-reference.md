@@ -4,6 +4,8 @@ Examples use the public `noqlen-forge` command. Old pre-release public aliases a
 
 Dry-run is the default for write-capable workflows. Use `--apply` only after reviewing the plan, warnings, confidence, destination paths, and counts.
 
+For a repository-owned inventory of the complete command surface, compatibility aliases, safety categories, and documentation follow-ups, see [CLI Command Surface Inventory](cli-inventory.md).
+
 ## Common Workflow
 
 ```bash
