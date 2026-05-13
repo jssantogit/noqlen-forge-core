@@ -54,11 +54,16 @@ from .workflow import Status
 from .writers import apply_musicbrainz_writes, plan_musicbrainz_writes, plan_partial_musicbrainz_repair, summarize_partial_repair, summarize_plans
 
 
-PUBLIC_COMMAND_METAVAR = "{navidrome,jobs,playlist,config,db,report,maintain,sync,duplicates,missing,untracked,missing-files,query,export,fields,review,dev,audit,organize,import,metadata,batch,cleanup,cover,lyrics,analyze,replaygain,set-style,candidates,apply-mbid,enrich}"
+PUBLIC_COMMAND_METAVAR = "COMMAND"
 
 
 def _add_debug_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+
+
+def _hide_top_level_command_help(subparsers: argparse._SubParsersAction, *names: str) -> None:
+    hidden = set(names)
+    subparsers._choices_actions = [action for action in subparsers._choices_actions if action.dest not in hidden]
 
 
 def _add_sync_arguments(parser: argparse.ArgumentParser) -> None:
@@ -377,7 +382,7 @@ Getting started:
   config      Manage configuration
   db          Initialize, scan, query and show status
 
-Core workflows:
+Primary workflows:
   audit       Inspect metadata quality
   enrich      Enrich tags, cover, lyrics and audio features
   import      Full safe import workflow
@@ -387,8 +392,6 @@ Reports:
   query       Query the local library database
   report      Missing fields, duplicates and untracked files
   export      Export reports and library data as JSON/CSV
-  duplicates  Find duplicate records without writing
-  missing     Find missing metadata without writing
 
 Playlists and ratings:
   playlist    Create and export smart playlists
@@ -397,15 +400,26 @@ Playlists and ratings:
 Maintenance and review:
   maintain    Sync, rewrite and repair safely
   review      Inspect and resolve REVIEW decisions
+  jobs        Inspect resumable/cancelable workflow jobs
 
-Contributor tools:
-  dev         Maintainer validation and isolated MusicLab tools
-
-Focused tools:
+Focused and advanced tools:
   cover       Manage embedded cover art
   lyrics      Manage lyrics
   replaygain  Analyze loudness/ReplayGain
   metadata    Query metadata providers
+  fields      List supported metadata fields
+
+Developer tools:
+  dev         Contributor validation and isolated MusicLab tools
+""",
+        epilog="""Compatibility shortcuts remain available:
+  sync -> maintain sync
+  duplicates -> report duplicates
+  missing -> report missing
+  untracked -> report untracked
+  missing-files -> report missing-files
+
+Run `noqlen-forge COMMAND --help` for command-specific options and safety notes.
 """,
     )
     subparsers = parser.add_subparsers(dest="command", required=True, metavar=PUBLIC_COMMAND_METAVAR)
@@ -552,16 +566,17 @@ Reports are read-only. They do not write tags, alter the SQLite database, move/c
     _add_repair_arguments(maintain_subparsers.add_parser("repair", help="Safely repair SQLite inconsistencies; dry-run unless --apply"))
     _add_rewrite_arguments(maintain_subparsers.add_parser("rewrite", help="Canonicalize configured metadata values; dry-run unless --apply"))
 
-    sync = subparsers.add_parser("sync", help="Alias for maintain sync; dry-run unless --apply")
+    sync = subparsers.add_parser("sync", help=argparse.SUPPRESS)
     _add_sync_arguments(sync)
 
-    _add_duplicates_parser(subparsers.add_parser("duplicates", help="Alias for report duplicates"))
+    _add_duplicates_parser(subparsers.add_parser("duplicates", help=argparse.SUPPRESS))
 
-    _add_missing_parser(subparsers.add_parser("missing", help="Alias for report missing; missing Key is WARN-level optional metadata"))
+    _add_missing_parser(subparsers.add_parser("missing", help=argparse.SUPPRESS))
 
-    _add_untracked_parser(subparsers.add_parser("untracked", help="Alias for report untracked"))
+    _add_untracked_parser(subparsers.add_parser("untracked", help=argparse.SUPPRESS))
 
-    _add_missing_files_parser(subparsers.add_parser("missing-files", help="Alias for report missing-files"))
+    _add_missing_files_parser(subparsers.add_parser("missing-files", help=argparse.SUPPRESS))
+    _hide_top_level_command_help(subparsers, "sync", "duplicates", "missing", "untracked", "missing-files")
 
     query = subparsers.add_parser("query", help="Query the local library database")
     query.add_argument("query")

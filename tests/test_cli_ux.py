@@ -12,14 +12,31 @@ def test_top_level_help_includes_cli_groups() -> None:
     help_text = cli.build_parser().format_help()
 
     assert "Getting started:" in help_text
-    assert "Core workflows:" in help_text
+    assert "Primary workflows:" in help_text
     assert "Reports:" in help_text
     assert "Playlists and ratings:" in help_text
     assert "Maintenance and review:" in help_text
-    assert "Contributor tools:" in help_text
-    assert "Focused tools:" in help_text
+    assert "Focused and advanced tools:" in help_text
+    assert "Developer tools:" in help_text
+    assert "Compatibility shortcuts remain available:" in help_text
+    assert "Run `noqlen-forge COMMAND --help`" in help_text
     positional_help = help_text.split("positional arguments:", 1)[1].split("options:", 1)[0]
     assert "    lab" not in positional_help
+    assert "    sync" not in positional_help
+    assert "    duplicates" not in positional_help
+
+
+def test_top_level_help_exits_successfully_and_shows_primary_commands(capsys) -> None:
+    with pytest.raises(SystemExit) as exc:
+        cli.build_parser().parse_args(["--help"])
+
+    assert exc.value.code == 0
+    output = capsys.readouterr().out
+    assert "usage: noqlen-forge [-h] COMMAND ..." in output
+    for command in ("config", "db", "audit", "report", "navidrome", "dev"):
+        assert command in output
+    assert "Soni" + "vra" not in output
+    assert "Music" + "Meta" not in output
 
 
 def test_dev_help_exposes_musiclab_namespace(capsys) -> None:
@@ -94,9 +111,21 @@ def test_sparse_command_help_describes_safety_and_scope(capsys) -> None:
 def test_top_level_help_keeps_compatibility_aliases_visible() -> None:
     help_text = cli.build_parser().format_help()
 
-    assert "sync                Alias for maintain sync" in help_text
-    assert "duplicates          Alias for report duplicates" in help_text
-    assert "missing             Alias for report missing" in help_text
+    assert "sync -> maintain sync" in help_text
+    assert "duplicates -> report duplicates" in help_text
+    assert "missing -> report missing" in help_text
+    assert "untracked -> report untracked" in help_text
+    assert "missing-files -> report missing-files" in help_text
+
+
+def test_compatibility_aliases_remain_callable() -> None:
+    parser = cli.build_parser()
+
+    assert parser.parse_args(["sync", ".", "--tags-to-db"]).command == "sync"
+    assert parser.parse_args(["duplicates"]).command == "duplicates"
+    assert parser.parse_args(["missing", "lyrics"]).command == "missing"
+    assert parser.parse_args(["untracked", "."]).command == "untracked"
+    assert parser.parse_args(["missing-files"]).command == "missing-files"
 
 
 def test_maintain_help_works_and_mentions_dry_run_apply_and_musiclab(capsys) -> None:
