@@ -65,6 +65,40 @@ def test_report_help_works_and_mentions_read_only(capsys) -> None:
     assert "noqlen-forge report missing lyrics" in output
 
 
+def _command_help(command: str, capsys) -> str:
+    with pytest.raises(SystemExit) as exc:
+        cli.build_parser().parse_args([command, "--help"])
+
+    assert exc.value.code == 0
+    return capsys.readouterr().out
+
+
+def test_sparse_command_help_describes_safety_and_scope(capsys) -> None:
+    expected = {
+        "metadata": ["Fetch metadata from configured providers", "Dry-run is the default", "external metadata services"],
+        "batch": ["Run enrichment over child album/single targets", "advanced convenience command", "may write tags"],
+        "cleanup": ["Plan cleanup of empty or malformed metadata", "writes tag changes", "does not move, copy or delete"],
+        "analyze": ["Analyze optional local audio features", "may write supported tags", "Last.fm"],
+        "set-style": ["Plan a manual STYLE tag value", "writes the STYLE tag", "--force"],
+        "candidates": ["Read-only", "calls MusicBrainz", "does not write tags"],
+        "apply-mbid": ["Plan MusicBrainz ID tag updates", "Dry-run is the default", "writes MusicBrainz identifier tags"],
+        "fields": ["Read-only", "reference command", "does not scan files"],
+    }
+
+    for command, snippets in expected.items():
+        output = _command_help(command, capsys)
+        for snippet in snippets:
+            assert snippet in output
+
+
+def test_top_level_help_keeps_compatibility_aliases_visible() -> None:
+    help_text = cli.build_parser().format_help()
+
+    assert "sync                Alias for maintain sync" in help_text
+    assert "duplicates          Alias for report duplicates" in help_text
+    assert "missing             Alias for report missing" in help_text
+
+
 def test_maintain_help_works_and_mentions_dry_run_apply_and_musiclab(capsys) -> None:
     with pytest.raises(SystemExit) as exc:
         cli.build_parser().parse_args(["maintain", "--help"])

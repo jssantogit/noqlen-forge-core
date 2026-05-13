@@ -613,9 +613,17 @@ Export is read-only except for the optional output file. It does not write tags,
     export.add_argument("--verbose", action="store_true")
     _add_debug_argument(export)
 
-    fields = subparsers.add_parser("fields", help="List supported metadata fields")
-    fields.add_argument("--category", choices=tuple(item.value for item in FieldCategory))
-    fields.add_argument("--scope", choices=tuple(item.value for item in FieldScope))
+    fields = subparsers.add_parser(
+        "fields",
+        help="List supported metadata fields without writing",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""List metadata fields understood by Noqlen Forge Core.
+
+Read-only. This is a reference command for scripts, configuration, reports and advanced troubleshooting. It does not scan files, write tags, alter the SQLite database, or call providers.
+""",
+    )
+    fields.add_argument("--category", choices=tuple(item.value for item in FieldCategory), help="Limit output to one field category")
+    fields.add_argument("--scope", choices=tuple(item.value for item in FieldScope), help="Limit output to fields used by one scope")
 
     review = subparsers.add_parser(
         "review",
@@ -758,32 +766,56 @@ Dry-run is the default. With --apply it may enrich tags, copy/move files into th
     import_parser.add_argument("--verbose", action="store_true")
     _add_debug_argument(import_parser)
 
-    metadata = subparsers.add_parser("metadata", help="Fetch provider metadata; dry-run unless --apply")
-    metadata.add_argument("path", type=Path)
-    metadata.add_argument("--apply", action="store_true")
-    metadata.add_argument("--dry-run", action="store_true")
-    metadata.add_argument("--force", action="store_true")
-    metadata.add_argument("--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"))
-    metadata.add_argument("--allow-more-providers", action="store_true")
-    metadata.add_argument("--min-confidence", choices=("high", "medium", "low"))
-    metadata.add_argument("--discogs-release-id")
-    metadata.add_argument("--candidate", type=int)
-    metadata.add_argument("--itunes-storefront")
-    metadata.add_argument("--verbose", action="store_true")
+    metadata = subparsers.add_parser(
+        "metadata",
+        help="Fetch provider metadata; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""Fetch metadata from configured providers and plan tag updates.
+
+Dry-run is the default and is intended for review first. With --apply, accepted plans may write supported metadata tags to audio files. This command can call external metadata services according to provider configuration.
+""",
+    )
+    metadata.add_argument("path", type=Path, help="Album, single, track or folder to inspect")
+    metadata.add_argument("--apply", action="store_true", help="Write accepted metadata plans to tags")
+    metadata.add_argument("--dry-run", action="store_true", help="Review planned metadata changes without writing; this is the default")
+    metadata.add_argument("--force", action="store_true", help="Allow replacement of existing supported fields where the workflow permits it")
+    metadata.add_argument("--provider", action="append", choices=("musicbrainz", "acoustid", "discogs", "itunes", "deezer", "beatport"), help="Use a specific provider; may be repeated")
+    metadata.add_argument("--allow-more-providers", action="store_true", help="Allow provider fan-out beyond the configured active-provider limit")
+    metadata.add_argument("--min-confidence", choices=("high", "medium", "low"), help="Minimum confidence required before a provider match can be accepted")
+    metadata.add_argument("--discogs-release-id", help="Advanced: force a specific Discogs release ID for provider lookup")
+    metadata.add_argument("--candidate", type=int, help="Advanced: select a numbered provider candidate when supported")
+    metadata.add_argument("--itunes-storefront", help="Advanced: override the iTunes storefront for this lookup")
+    metadata.add_argument("--verbose", action="store_true", help="Show detailed provider attempts and decisions")
     _add_debug_argument(metadata)
 
-    batch = subparsers.add_parser("batch", help="Safely process direct child album/single targets; dry-run unless --apply")
-    batch.add_argument("path", type=Path)
-    batch.add_argument("--apply", action="store_true")
-    batch.add_argument("--recursive", action="store_true")
-    batch.add_argument("--yes", action="store_true")
-    batch.add_argument("--continue-on-review", action="store_true")
+    batch = subparsers.add_parser(
+        "batch",
+        help="Process child album/single targets; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""Run enrichment over child album/single targets in batches.
 
-    cleanup = subparsers.add_parser("cleanup", help="Remove empty/bad metadata; dry-run unless --apply")
-    cleanup.add_argument("path", type=Path)
-    cleanup.add_argument("--apply", action="store_true")
-    cleanup.add_argument("--dry-run", action="store_true")
-    cleanup.add_argument("--verbose", action="store_true")
+Dry-run is the default and should be reviewed first. With --apply, each processed target follows the enrichment workflow and may write tags, cover, lyrics or audio feature fields according to the selected workflow options. This is an advanced convenience command for curated incoming folders.
+""",
+    )
+    batch.add_argument("path", type=Path, help="Parent folder containing album/single targets")
+    batch.add_argument("--apply", action="store_true", help="Apply each accepted child-target enrichment plan")
+    batch.add_argument("--recursive", action="store_true", help="Discover targets recursively instead of direct children only")
+    batch.add_argument("--yes", action="store_true", help="Skip interactive confirmation questions where the batch workflow asks")
+    batch.add_argument("--continue-on-review", action="store_true", help="Continue processing later targets when one target needs manual review")
+
+    cleanup = subparsers.add_parser(
+        "cleanup",
+        help="Clean empty or malformed metadata; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""Plan cleanup of empty or malformed metadata values in supported audio tags.
+
+Dry-run is the default and should be reviewed before applying. With --apply, cleanup writes tag changes to audio files. It does not move, copy or delete music files.
+""",
+    )
+    cleanup.add_argument("path", type=Path, help="Album, track or folder to inspect")
+    cleanup.add_argument("--apply", action="store_true", help="Write planned cleanup changes to tags")
+    cleanup.add_argument("--dry-run", action="store_true", help="Review planned cleanup changes without writing; this is the default")
+    cleanup.add_argument("--verbose", action="store_true", help="Show detailed cleanup decisions")
 
     cover = subparsers.add_parser("cover", help="Detect, fetch, save and embed album cover; dry-run unless --apply")
     cover.add_argument("path", type=Path)
@@ -831,20 +863,20 @@ Dry-run is the default. With --apply it may enrich tags, copy/move files into th
         "analyze",
         help="Analyze optional local audio features; dry-run unless --apply",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""Analyze optional local audio features.
+        description="""Analyze optional local audio features and enrichment signals.
 
-Key detection uses native optional backends. `portable_basic` is the lightweight default, `disabled` skips analysis, and `auto` follows config order.
+Dry-run is the default. With --apply, selected analysis results may write supported tags or local metadata fields. Some options may call configured external services, such as Last.fm. Key detection uses native optional backends: `portable_basic` is the lightweight default, `disabled` skips analysis, and `auto` follows config order.
 """,
     )
-    analyze.add_argument("path", type=Path)
-    analyze.add_argument("--apply", action="store_true")
-    analyze.add_argument("--bpm", action="store_true")
+    analyze.add_argument("path", type=Path, help="Album, track or folder to analyze")
+    analyze.add_argument("--apply", action="store_true", help="Write selected analysis results instead of previewing them")
+    analyze.add_argument("--bpm", action="store_true", help="Analyze BPM")
     analyze.add_argument("--key", action="store_true", help="Analyze optional KEY/INITIALKEY metadata")
     analyze.add_argument("--backend", metavar="BACKEND", help="Optional key detection backend used with --key: auto, portable_basic, or disabled")
-    analyze.add_argument("--features", action="store_true")
-    analyze.add_argument("--lastfm-tags", action="store_true")
-    analyze.add_argument("--mood", action="store_true")
-    analyze.add_argument("--skip-lastfm", action="store_true")
+    analyze.add_argument("--features", action="store_true", help="Analyze local audio feature fields")
+    analyze.add_argument("--lastfm-tags", action="store_true", help="Fetch Last.fm tags when configured")
+    analyze.add_argument("--mood", action="store_true", help="Infer mood metadata from available signals")
+    analyze.add_argument("--skip-lastfm", action="store_true", help="Skip Last.fm calls even when Last.fm options are selected")
     analyze.add_argument("--energy", action="store_true")
     analyze.add_argument("--danceability", action="store_true")
     analyze.add_argument("--skip-existing", action="store_true")
@@ -872,22 +904,46 @@ Key detection uses native optional backends. `portable_basic` is the lightweight
     replaygain.add_argument("--verbose", action="store_true")
     _add_debug_argument(replaygain)
 
-    set_style = subparsers.add_parser("set-style", help="Set STYLE manually; dry-run unless --apply")
-    set_style.add_argument("path", type=Path)
-    set_style.add_argument("style")
-    set_style.add_argument("--apply", action="store_true")
-    set_style.add_argument("--dry-run", action="store_true")
-    set_style.add_argument("--force", action="store_true")
+    set_style = subparsers.add_parser(
+        "set-style",
+        help="Set STYLE manually; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""Plan a manual STYLE tag value for supported audio files.
 
-    candidates = subparsers.add_parser("candidates", help="List MusicBrainz release candidates")
-    candidates.add_argument("path", type=Path)
+Dry-run is the default and should be reviewed first. With --apply, this writes the STYLE tag to audio files that do not already have STYLE unless --force is used.
+""",
+    )
+    set_style.add_argument("path", type=Path, help="Album, track or folder to update")
+    set_style.add_argument("style", help="STYLE value to write, for example a semicolon-separated style list")
+    set_style.add_argument("--apply", action="store_true", help="Write STYLE tags to audio files")
+    set_style.add_argument("--dry-run", action="store_true", help="Preview STYLE tag writes without changing files; this is the default")
+    set_style.add_argument("--force", action="store_true", help="Overwrite existing STYLE values where supported")
 
-    apply_mbid = subparsers.add_parser("apply-mbid", help="Apply MusicBrainz IDs; dry-run unless --apply")
-    apply_mbid.add_argument("path", type=Path)
-    apply_mbid.add_argument("--release-id")
-    apply_mbid.add_argument("--apply", action="store_true")
-    apply_mbid.add_argument("--dry-run", action="store_true")
-    apply_mbid.add_argument("--force", action="store_true")
+    candidates = subparsers.add_parser(
+        "candidates",
+        help="List MusicBrainz release candidates without writing",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""List ranked MusicBrainz release candidates for a target.
+
+Read-only. This command reads local tags and calls MusicBrainz, then prints candidate IDs for review. It does not write tags, alter the SQLite database, or modify files.
+""",
+    )
+    candidates.add_argument("path", type=Path, help="Album, single, track or folder to match")
+
+    apply_mbid = subparsers.add_parser(
+        "apply-mbid",
+        help="Apply MusicBrainz IDs; dry-run unless --apply",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""Plan MusicBrainz ID tag updates from a selected or ranked release.
+
+Dry-run is the default and should be reviewed first. With --apply, this writes MusicBrainz identifier tags to audio files. Use --release-id when you have already reviewed candidates and want a specific release.
+""",
+    )
+    apply_mbid.add_argument("path", type=Path, help="Album, single, track or folder to update")
+    apply_mbid.add_argument("--release-id", help="MusicBrainz release UUID to apply after review")
+    apply_mbid.add_argument("--apply", action="store_true", help="Write planned MusicBrainz ID tags to audio files")
+    apply_mbid.add_argument("--dry-run", action="store_true", help="Preview MusicBrainz ID tag writes without changing files; this is the default")
+    apply_mbid.add_argument("--force", action="store_true", help="Overwrite existing MusicBrainz IDs where supported")
 
     enrich = subparsers.add_parser(
         "enrich",
@@ -1600,7 +1656,7 @@ def candidates(path: Path) -> int:
         print(f"{item.score:3d} {release.get('id')} {release.get('title')} {release.get('date', '')} {release.get('country', '')}")
         print("    " + "; ".join(item.reasons))
     if not ranked:
-        print("Nenhum candidato encontrado. Tente --release-id UUID ou verifique artist/album/title.")
+        print("No candidates found. Try --release-id UUID or check artist/album/title tags.")
         return 1
     return 0
 
@@ -1621,7 +1677,7 @@ def apply_mbid(path: Path, release_id: str | None, apply: bool, force: bool = Fa
     else:
         ranked = rank_releases(tracks, hydrate_releases(search_releases(tracks)))
         if not ranked:
-            print("Nenhum candidato encontrado. Tente --release-id UUID ou verifique artist/album/title.")
+            print("No candidates found. Try --release-id UUID or check artist/album/title tags.")
             return 1
         scored = ranked[0]
         release = scored.release
