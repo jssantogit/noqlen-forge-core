@@ -30,7 +30,8 @@ rg -n '/mnt/sdcard|Biblioteca de Musicas|Biblioteca de Músicas|/storage/emulate
 find . -path ./.git -prune -o -path ./site -print
 git ls-files site docs_site/site public/site 2>/dev/null || true
 git ls-files '*__pycache__*' '*.pyc'
-git grep -n -E 'Sonivra|sonivra|sonivra-meta|MusicMeta|musicmeta|\.musicmeta|private repository|keep.*private|mkdocs gh-deploy|gh-pages' -- . || true
+# Ran the GitHub Actions legacy-reference guard logic from .github/workflows/ci.yml.
+git grep -n -E 'private repository|keep.*private|mkdocs gh-deploy|gh-pages' -- . || true
 git grep -n -E '/mnt/sdcard|Biblioteca de Musicas|Biblioteca de Músicas|/storage/emulated|/sdcard|/Users/|C:\\Users|/home/[^ /]+' -- README.md docs docs_site .github pyproject.toml config.example.toml noqlen_forge tests scripts || true
 git grep -n -E 'AKIA[0-9A-Z]{16}|-----BEGIN (RSA |OPENSSH |DSA |EC |PGP )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|xox[baprs]-[A-Za-z0-9-]+' -- . || true
 git grep -n -E 'full lyrics|these are full lyrics|fingerprint[[:space:]]*=|fingerprint:|acoustid_fingerprint|lyrichash|super-secret|token=secret' -- README.md docs docs_site .github pyproject.toml config.example.toml noqlen_forge tests scripts || true
