@@ -21,9 +21,9 @@ Status: Pass, with acceptable findings and follow-up tasks recorded below.
 - `CONTRIBUTING.md`
 - `SUPPORT.md`
 
-`AGENTS.md` is not present in the public checkout.
+Ignored local-only automation files are not part of the public checkout and are outside this audit's public surface.
 
-## Commands And Searches Run
+## Audit Checks Run
 
 ```bash
 rg -n '/mnt/sdcard|Biblioteca de Musicas|Biblioteca de Músicas|/storage/emulated|/sdcard|/Users/|C:\\Users|/home/[^ /]+|password|passwd|secret|token|api[_-]?key|fingerprint|lyrics|private repository|keep.*private|gh-pages|mkdocs gh-deploy' . || true
@@ -56,6 +56,22 @@ The first `rg` search was manually reviewed. It produced many expected matches f
 | Real-library workflow safety | Pass | Public docs emphasize dry-run first, MusicLab/fake/temporary validation, and protected library roots. No real-library workflow was executed during this audit. |
 | Old branding/stale wording | Pass | No old project names or obsolete branding terms searched by the audit were found. No stale wording claiming the repository is private was found. |
 
+## Public Hardening Status
+
+- `LICENSE` is present and uses MIT text.
+- `README.md` links to the repository license and remains consistent with the current source-install, early public release posture.
+- Public docs use current Noqlen naming: Noqlen Forge Core for this project, `noqlen-forge` for the CLI, and `noqlen_forge` for the Python package/import path.
+- Legacy naming references searched by the audit were removed from tracked public files.
+- No hardcoded personal library path remains in runtime-facing public files reviewed by this audit.
+- Protected library root controls are documented as generic safety controls.
+- MusicLab, fake, fixture, or temporary validation is documented as the automated validation policy.
+- Real-library automated tests are not part of the public validation policy; real-library validation should remain manual, controlled, dry-run-first, and reviewable.
+- GitHub Pages deployment is documented as GitHub Actions only.
+- Generated `site/` output is ignored and must not be committed.
+- `mkdocs gh-deploy` is not used for this repository.
+- Deployment does not depend on a manual `gh-pages` branch.
+- CI and Pages status should be checked after pushing changes that affect the repository, docs, workflows, or release surface.
+
 ## Known Acceptable Findings
 
 - `site/` is present in the local working tree as an ignored generated directory. It is not tracked and was not added.
@@ -74,6 +90,13 @@ None found in the audited public surface.
 - Remove or regenerate the ignored local `site/` directory before packaging or release operations if a clean working tree artifact check is desired.
 - Re-run this audit before the first public tag and after any future workflow, packaging, docs-site, or release-process changes.
 - Keep the first public release checklist open until CI status, repository settings, GitHub topics, branch protections, and release tagging decisions are confirmed in GitHub.
+
+## Next Phase
+
+- Expand the public documentation site before the first tagged release.
+- Inventory and document all `noqlen-forge` CLI subcommands, options, and flags.
+- Simplify top-level CLI help and discovery so new users can find safe entry points quickly.
+- Audit Core/API boundaries for future Flux, Anchor, and Aria reuse without starting Aria or mobile implementation yet.
 
 ## Behavior Confirmation
 
