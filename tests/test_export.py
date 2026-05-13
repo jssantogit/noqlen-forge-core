@@ -191,7 +191,7 @@ def test_export_automated_output_blocks_real_library(monkeypatch, tmp_path: Path
     _seed(config, tmp_path / "Library")
     monkeypatch.setenv("NOQLEN_FORGE_AUTOMATED_VALIDATION", "1")
 
-    code, output = export_data(config, "NewJeans", export_format="json", output=Path("/mnt/sdcard/Music/Biblioteca de Musicas/export.json"))
+    code, output = export_data(config, "NewJeans", export_format="json", output=Path("/mnt/noqlen-forge-export.json"))
 
     assert code == 1
     assert "dangerous path" in output

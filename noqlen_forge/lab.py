@@ -43,7 +43,7 @@ from .replaygain import replaygain_path
 from .reports import missing_files_report, missing_report, untracked_report
 from .review import review_list, review_resolve, review_show
 from .rewrite import rewrite_path
-from .safety import AUTOMATED_VALIDATION_ENV
+from .safety import AUTOMATED_VALIDATION_ENV, DANGEROUS_ROOTS, DANGEROUS_TREE_ROOTS
 from .services import AuditOptions, CoverOptions, OrganizeOptions, PlaylistExportOptions, build_export_options, build_missing_options, run_audit_service, run_cover_service, run_export_service, run_missing_service, run_organize_service, run_playlist_export_service, workflow_result_to_dict, workflow_result_to_json
 from .services.report_service import missing_report_title, render_report_result, report_scope_label
 from .services.audit_service import audit_result_from_workflow
@@ -59,10 +59,8 @@ from .lab_runner import LabRunRecorder, LabStep, duration_suffix as _runner_dura
 LAB_MARKER = ".noqlen-forge-lab"
 DEFAULT_LAB_PATH = Path.home() / "MusicLab" / "noqlen-forge-lab"
 DANGEROUS_PATHS = {
-    Path("/"),
-    Path.home(),
-    Path("/mnt/sdcard/Music"),
-    Path("/mnt/sdcard/Music/Biblioteca de Musicas"),
+    *DANGEROUS_ROOTS,
+    *DANGEROUS_TREE_ROOTS,
 }
 
 
@@ -1857,11 +1855,10 @@ def _rewrite_check(path: Path, config: dict, report_dir: Path, commands: list[st
 
 
 def _sync_safety_check(report_dir: Path, commands: list[str], stdout_chunks: list[str], stderr_chunks: list[str]) -> None:
-    real_library = "/mnt/sdcard/Music" + "/Biblioteca de Musicas"
     script = "from noqlen_forge.cli import main; raise SystemExit(main(['sync',__import__('os').environ['NOQLEN_FORGE_REAL_LIBRARY_CHECK'],'--db-to-tags','--apply']))"
     command = ["python", "-c", script]
     env = {**os.environ, AUTOMATED_VALIDATION_ENV: "1"}
-    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = real_library
+    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = str(report_dir.parent.parent.parent / "outside-musiclab")
     result = subprocess.run(command, capture_output=True, text=True, env=env, timeout=30)
     output = (result.stdout or "") + (result.stderr or "")
     commands.append("sync safety outside MusicLab")
@@ -1873,11 +1870,10 @@ def _sync_safety_check(report_dir: Path, commands: list[str], stdout_chunks: lis
 
 
 def _rewrite_safety_check(report_dir: Path, commands: list[str], stdout_chunks: list[str], stderr_chunks: list[str]) -> None:
-    real_library = "/mnt/sdcard/Music" + "/Biblioteca de Musicas"
     script = "from noqlen_forge.cli import main; raise SystemExit(main(['maintain','rewrite',__import__('os').environ['NOQLEN_FORGE_REAL_LIBRARY_CHECK'],'--apply']))"
     command = ["python", "-c", script]
     env = {**os.environ, AUTOMATED_VALIDATION_ENV: "1"}
-    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = real_library
+    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = str(report_dir.parent.parent.parent / "outside-musiclab")
     result = subprocess.run(command, capture_output=True, text=True, env=env, timeout=30)
     output = (result.stdout or "") + (result.stderr or "")
     commands.append("rewrite safety outside MusicLab")
@@ -1889,11 +1885,10 @@ def _rewrite_safety_check(report_dir: Path, commands: list[str], stdout_chunks: 
 
 
 def _repair_safety_check(report_dir: Path, commands: list[str], stdout_chunks: list[str], stderr_chunks: list[str]) -> None:
-    real_library = "/mnt/sdcard/Music" + "/Biblioteca de Musicas"
     script = "from noqlen_forge.cli import main; raise SystemExit(main(['maintain','repair',__import__('os').environ['NOQLEN_FORGE_REAL_LIBRARY_CHECK'],'--apply']))"
     command = ["python", "-c", script]
     env = {**os.environ, AUTOMATED_VALIDATION_ENV: "1"}
-    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = real_library
+    env["NOQLEN_FORGE_REAL_LIBRARY_CHECK"] = str(report_dir.parent.parent.parent / "outside-musiclab")
     result = subprocess.run(command, capture_output=True, text=True, env=env, timeout=30)
     output = (result.stdout or "") + (result.stderr or "")
     commands.append("repair safety outside MusicLab")
@@ -2267,7 +2262,7 @@ def _query_language_check(config: dict, library: Path, report_dir: Path, command
         raise LabFailure("DB query stability", "db query read-only", f"before={before_db} after={after_db}")
     if before_files != after_files:
         raise LabFailure("DB query stability", "db query file writes", "query changed MusicLab audio files")
-    if str(library).startswith("/mnt/sdcard/Music/Biblioteca de Musicas"):
+    if any((library.resolve(strict=False) == dangerous.resolve(strict=False) or dangerous.resolve(strict=False) in library.resolve(strict=False).parents) for dangerous in DANGEROUS_TREE_ROOTS):
         raise LabFailure("DB query safety", "real library guard", str(library))
     return "status, combined fields, aliases, negation, scopes, JSON, read-only"
 
@@ -2456,9 +2451,9 @@ def _export_check(lab: Path, config: dict, library: Path, report_dir: Path, comm
         raise LabFailure("Export DB stability", "noqlen-forge export", f"before={before_db} after={after_db}")
     if before_files != after_files:
         raise LabFailure("Export file stability", "noqlen-forge export", "export changed MusicLab audio files")
-    if str(library).startswith("/mnt/sdcard/Music/Biblioteca de Musicas"):
+    if any((library.resolve(strict=False) == dangerous.resolve(strict=False) or dangerous.resolve(strict=False) in library.resolve(strict=False).parents) for dangerous in DANGEROUS_TREE_ROOTS):
         raise LabFailure("Export safety", "real library guard", str(library))
-    unsafe_code, unsafe_output = export_data(config, "NewJeans", export_format="json", output=Path("/mnt/sdcard/Music/Biblioteca de Musicas/export.json"))
+    unsafe_code, unsafe_output = export_data(config, "NewJeans", export_format="json", output=Path("/mnt/noqlen-forge-export.json"))
     if unsafe_code == 0 or "dangerous path" not in unsafe_output:
         raise LabFailure("Export safety", "dangerous output guard", unsafe_output)
     combined = "\n".join([query_json, missing_text, json.dumps(duplicates_payload), json.dumps(reviews_payload), json.dumps(library_payload)])

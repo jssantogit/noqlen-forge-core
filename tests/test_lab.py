@@ -84,7 +84,7 @@ def test_lab_reset_allows_missing_safe_default_path(tmp_path: Path) -> None:
     assert "not present" in output
 
 
-@pytest.mark.parametrize("path", [Path("/"), Path.home(), Path("/mnt/sdcard/Music"), Path("/mnt/sdcard/Music/Biblioteca de Musicas")])
+@pytest.mark.parametrize("path", [Path("/"), Path.home(), Path("/mnt"), Path("/media"), Path("/storage")])
 def test_lab_safety_guard_blocks_dangerous_paths(path: Path) -> None:
     code, output = lab_create(path)
 

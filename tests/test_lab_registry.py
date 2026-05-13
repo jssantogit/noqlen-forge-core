@@ -47,7 +47,7 @@ def test_lab_context_derives_only_musiclab_paths(tmp_path: Path) -> None:
 
     context.assert_inside_lab(context.incoming, context.library, context.output, context.reports, context.config_path, context.db_path)
     with pytest.raises(ValueError):
-        context.assert_inside_lab(Path("/mnt/sdcard/Music/Biblioteca de Musicas"))
+        context.assert_inside_lab(tmp_path / "outside-lab")
 
 
 def test_lab_assertions_basic_helpers(tmp_path: Path) -> None:

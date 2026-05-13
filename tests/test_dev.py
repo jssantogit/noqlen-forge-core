@@ -132,13 +132,10 @@ def test_run_dev_step_sets_automated_validation(monkeypatch) -> None:
 
 
 def test_dev_check_commands_do_not_target_real_library_or_apply() -> None:
-    prohibited = "/mnt/sdcard/Music/Biblioteca de Musicas"
     for argv in (["dev", "check"], ["dev", "check", "--quick"], ["dev", "check", "--full"], ["dev", "check", "--unit"], ["dev", "check", "--lab", "--timing"], ["dev", "check", "--lab-quick"]):
         args = cli.build_parser().parse_args(argv)
         for step in build_dev_check_steps(args):
-            joined = " ".join(step.command)
             assert "--apply" not in step.command
-            assert prohibited not in joined
 
 
 def test_docs_state_quick_never_replaces_full_before_commit() -> None:

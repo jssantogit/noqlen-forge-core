@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-REAL_LIBRARY_PATH = Path("/mnt/sdcard/Music/Biblioteca de Musicas")
+PROTECTED_PATH_MARKERS = ("/mnt/", "/media/", "/storage/", "/sdcard/")
 
 
 def assert_command_status(output: str, expected_status: str) -> None:
@@ -70,7 +70,7 @@ def assert_musiclab_safe_paths(*paths: Path) -> None:
 
 
 def assert_no_real_library_path(output: str) -> None:
-    assert str(REAL_LIBRARY_PATH) not in output
+    assert not any(marker in output for marker in PROTECTED_PATH_MARKERS)
 
 
 def temp_db_config(path: Path) -> dict:

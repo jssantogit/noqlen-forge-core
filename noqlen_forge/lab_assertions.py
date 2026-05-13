@@ -28,9 +28,9 @@ def assert_db_counts(counts: dict[str, int], **expected: int) -> None:
 
 
 def assert_no_real_paths(output: str) -> None:
-    real_library = "/mnt/sdcard/Music/Biblioteca de Musicas"
-    if real_library in output:
-        raise AssertionError("Output references the real music library")
+    for marker in ("/mnt/", "/media/", "/storage/", "/sdcard/"):
+        if marker in output:
+            raise AssertionError("Output references a protected library location")
 
 
 def assert_no_secrets(output: str) -> None:
