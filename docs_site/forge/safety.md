@@ -14,6 +14,16 @@ Do not make destructive changes casually. Rewrite, repair, restore, push, move, 
 
 Review all source and destination paths before applying changes. Avoid broad paths, stale mounts, untrusted symlinks, and paths that could escape the intended library root.
 
+Forge refuses dangerous filesystem roots and broad storage roots for write-capable safety checks. This protects against accidental operations on the filesystem root, home directory, broad mount locations, removable-media roots, and similar locations that are too wide to be a safe workflow target.
+
+For local development or test environments, `NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS` can add extra protected roots without committing personal paths. It is optional and should be set only in the local shell or automation environment. Use the platform path-list separator: `:` on POSIX shells and `;` on Windows shells.
+
+```bash
+export NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS="/tmp/noqlen-real-library:/example/protected/music"
+```
+
+Do not commit real personal library paths to docs, tests, logs, reports, examples, or config snippets. Keep examples generic and review generated reports before sharing them.
+
 ## Symlink And Traversal Care
 
 Workflows must be careful around symlinks and path traversal. Automated checks should prefer temporary fixtures and must not follow unsafe paths into private areas.

@@ -79,10 +79,23 @@ Safety rules:
 
 - MusicLab never uses real user files.
 - `lab reset` deletes only directories marked with `.noqlen-forge-lab`.
-- Dangerous paths such as `/`, `$HOME`, broad music roots, and known real-library roots are blocked.
+- Dangerous paths such as `/`, `$HOME`, broad mount roots, removable-media roots, and configured protected library roots are blocked.
 - Real providers do not run by default; live provider checks must be explicit and credentialed.
 - Any validation command with `--apply` must target only paths inside MusicLab.
 - Automated validation must never write tags, files, SQLite rows, or external API state in the real music library.
+- Real personal paths must not be committed to docs, tests, logs, reports, fixtures, or examples.
+
+## Protected Library Roots
+
+`NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS` is an optional local/test/development guardrail for marking additional library roots as protected. It is useful when a developer wants automated validation to refuse a copied local library or another fake root without embedding private paths in runtime code or tests.
+
+Set it only in the local shell or local automation environment. Do not commit personal values to repository files. The value is a platform path-list: use `:` between entries on POSIX shells and `;` between entries on Windows shells.
+
+```bash
+export NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS="/tmp/noqlen-real-library:/example/protected/music"
+```
+
+Tests should prefer `tmp_path`, fake fixtures, or MusicLab paths. If a test needs protected-root behavior, inject a fake path or set `NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS` to a fake path for that test only.
 
 ## Pytest Markers
 

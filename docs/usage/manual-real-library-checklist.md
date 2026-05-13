@@ -20,6 +20,16 @@ Do not start with the whole library. Start with one copied album or a small copi
 - Do not commit or export secrets, API keys, Navidrome passwords, salts, tokens, full lyrics, or raw provider payloads.
 - Do not run commands against the real library from automation. These commands are for later manual use by the user.
 
+Noqlen Forge Core refuses dangerous filesystem roots and broad storage roots during path-safety checks. Automated `--apply` workflows are constrained to MusicLab or fake fixtures and should not target real libraries without explicit manual review.
+
+If you want an extra local guardrail for a copied or real library root, set `NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS` in your shell or local automation environment. This variable is optional, is not a config file setting, and must not be used to commit personal paths. It accepts a platform path-list: `:` between entries on POSIX shells and `;` between entries on Windows shells.
+
+```bash
+export NOQLEN_FORGE_PROTECTED_LIBRARY_ROOTS="/tmp/noqlen-real-library:/example/protected/music"
+```
+
+Treat generated reports and logs as potentially private. Keep them outside the library when possible, review them for paths before sharing, and do not commit reports that expose real local paths.
+
 ```bash
 export LIBRARY="/path/to/Music Library"
 export SAMPLE_ALBUM="/path/to/Copied Sample/Artist/Album"
