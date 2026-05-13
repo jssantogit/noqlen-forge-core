@@ -1663,7 +1663,7 @@ def candidates(path: Path) -> int:
         print(f"{item.score:3d} {release.get('id')} {release.get('title')} {release.get('date', '')} {release.get('country', '')}")
         print("    " + "; ".join(item.reasons))
     if not ranked:
-        print("No candidates found. Try --release-id UUID or check artist/album/title tags.")
+        print("No matching release candidates were found. Try --release-id UUID or check artist/album/title tags.")
         return 1
     return 0
 
@@ -1684,13 +1684,13 @@ def apply_mbid(path: Path, release_id: str | None, apply: bool, force: bool = Fa
     else:
         ranked = rank_releases(tracks, hydrate_releases(search_releases(tracks)))
         if not ranked:
-            print("No candidates found. Try --release-id UUID or check artist/album/title tags.")
+            print("No matching release candidates were found. Try --release-id UUID or check artist/album/title tags.")
             return 1
         scored = ranked[0]
         release = scored.release
     print(f"Selected score={scored.score} release={release.get('id')} title={release.get('title')}")
     if scored.score < 80 and not release_id:
-        print("Score below 80; not applying MBIDs")
+        print("Score below 80; review required before applying MusicBrainz IDs.")
         return 1
     if 80 <= scored.score < 95 and apply and not release_id:
         answer = input("Apply medium-confidence MusicBrainz match? [y/N] ").strip().lower()
@@ -2563,19 +2563,19 @@ def _apply_best_musicbrainz(path: Path, tracks, apply: bool, force: bool, verbos
     ranked = rank_releases(tracks, hydrate_releases(search_releases(tracks)))
     if not ranked:
         if verbose:
-            print("Nenhum candidato encontrado. Tente --release-id UUID ou verifique artist/album/title.")
+            print("No matching release candidates were found. Try --release-id UUID or check artist/album/title tags.")
         return []
     scored = ranked[0]
     if verbose:
         print(f"MusicBrainz candidate score={scored.score} release={scored.release.get('id')}")
     if scored.score < 80:
         if verbose:
-            print("Score below 80; not applying MBIDs")
+            print("Score below 80; review required before applying MusicBrainz IDs.")
         return []
     if 80 <= scored.score < 95 and apply:
         answer = input("Apply medium-confidence MusicBrainz match? [y/N] ").strip().lower()
         if answer not in {"y", "yes", "s", "sim"}:
-            print("Skipped MusicBrainz apply")
+            print("Skipped MusicBrainz ID application.")
             return []
     plans = plan_musicbrainz_writes(tracks, scored.release, force=force)
     errors = apply_musicbrainz_writes(plans, apply=apply)

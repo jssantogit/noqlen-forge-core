@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from noqlen_forge import cli
@@ -132,6 +134,17 @@ def test_compatibility_alias_help_remains_callable(capsys) -> None:
 
         assert exc.value.code == 0
         assert f"usage: noqlen-forge {alias}" in capsys.readouterr().out
+
+
+def test_musicbrainz_verbose_fallback_message_is_english(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(cli, "search_releases", lambda tracks: [])
+    monkeypatch.setattr(cli, "hydrate_releases", lambda releases: releases)
+    monkeypatch.setattr(cli, "rank_releases", lambda tracks, releases: [])
+
+    assert cli._apply_best_musicbrainz(Path("album"), [], apply=False, force=False, verbose=True) == []
+
+    output = capsys.readouterr().out
+    assert "No matching release candidates were found." in output
 
 
 def test_maintain_help_works_and_mentions_dry_run_apply_and_musiclab(capsys) -> None:
