@@ -37,7 +37,6 @@ from .replaygain import replaygain_path
 from .rewrite import rewrite_path
 from .safety import SafetyError, automated_validation_enabled, require_lab_path_for_automated_apply
 from .scoring import rank_releases, score_release
-from .smart_playlists import smart_create, smart_delete, smart_export, smart_list, smart_refresh, smart_rename, smart_show
 from .services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from .services.cli_helpers import load_cli_config, parse_fields, render_service_result, render_structured_service_result
 from .services.core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
@@ -51,7 +50,7 @@ from .services.job_service import JobsOptions, run_jobs_service
 from .services.lyrics_service import LyricsOptions, render_lyrics_service_result, run_lyrics_service
 from .services.maintenance_service import RepairOptions, RewriteOptions, SyncOptions, run_repair_service, run_rewrite_service, run_sync_service
 from .services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
-from .services.playlist_service import PlaylistExportOptions, render_playlist_export_result, run_playlist_export_service
+from .services.playlist_service import PlaylistExportOptions, PlaylistOptions, render_playlist_export_result, render_playlist_service_result, run_playlist_export_service, run_playlist_service
 from .services.report_service import QueryOptions, build_duplicates_options, build_export_options, build_missing_files_options, build_missing_options, build_untracked_options, missing_report_title, render_report_result, report_scope_label, run_duplicates_service, run_export_service, run_missing_files_service, run_missing_service, run_query_service, run_untracked_service
 from .services.types import workflow_result_to_json
 from .style import set_style_path
@@ -1431,11 +1430,14 @@ def playlist_command(args: argparse.Namespace, config: dict | None = None) -> in
         return 1
     command = args.smart_command
     if command == "create":
-        code, output = smart_create(active_config, args.name, args.query, apply=args.apply, default_format=args.default_format, sort=args.sort, reverse=args.reverse, limit=args.limit, path_mode=args.path_mode, library_root=args.library_root, force=args.force, output_format=args.format, verbose=args.verbose, debug=args.debug)
+        result = run_playlist_service(PlaylistOptions(active_config, command, name=args.name, query=args.query, apply=args.apply, default_format=args.default_format, sort=args.sort, reverse=args.reverse, limit=args.limit, path_mode=args.path_mode, library_root=args.library_root, force=args.force, output_format=args.format, verbose=args.verbose, debug=args.debug))
+        code, output = render_playlist_service_result(result)
     elif command == "list":
-        code, output = smart_list(active_config, output_format=args.format, verbose=args.verbose, debug=args.debug)
+        result = run_playlist_service(PlaylistOptions(active_config, command, output_format=args.format, verbose=args.verbose, debug=args.debug))
+        code, output = render_playlist_service_result(result)
     elif command == "show":
-        code, output = smart_show(active_config, args.name, output_format=args.format, verbose=args.verbose, debug=args.debug)
+        result = run_playlist_service(PlaylistOptions(active_config, command, name=args.name, output_format=args.format, verbose=args.verbose, debug=args.debug))
+        code, output = render_playlist_service_result(result)
     elif command == "export":
         result = run_playlist_export_service(PlaylistExportOptions(active_config, args.name, export_format=args.format, output=args.output, force=args.force, path_mode=args.path_mode, library_root=args.library_root, verbose=args.verbose, debug=args.debug))
         code, output = render_structured_service_result(result) if args.format == "json" else render_playlist_export_result(result, name=args.name)
@@ -1443,9 +1445,11 @@ def playlist_command(args: argparse.Namespace, config: dict | None = None) -> in
         result = run_playlist_export_service(PlaylistExportOptions(active_config, args.name, export_format=args.format, output=args.output, force=args.force, path_mode=args.path_mode, library_root=args.library_root, verbose=args.verbose, debug=args.debug, command="playlist smart refresh"))
         code, output = render_structured_service_result(result) if args.format == "json" else render_playlist_export_result(result, name=args.name)
     elif command == "delete":
-        code, output = smart_delete(active_config, args.name, apply=args.apply, output_format=args.format, verbose=args.verbose, debug=args.debug)
+        result = run_playlist_service(PlaylistOptions(active_config, command, name=args.name, apply=args.apply, output_format=args.format, verbose=args.verbose, debug=args.debug))
+        code, output = render_playlist_service_result(result)
     elif command == "rename":
-        code, output = smart_rename(active_config, args.old_name, args.new_name, apply=args.apply, force=args.force, output_format=args.format, verbose=args.verbose, debug=args.debug)
+        result = run_playlist_service(PlaylistOptions(active_config, command, name=args.old_name, new_name=args.new_name, apply=args.apply, force=args.force, output_format=args.format, verbose=args.verbose, debug=args.debug))
+        code, output = render_playlist_service_result(result)
     else:
         return 1
     print(output)

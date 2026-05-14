@@ -31,6 +31,7 @@ from .services import (
     NavidromeRatingsOptions,
     OrganizeOptions,
     PlaylistExportOptions,
+    PlaylistOptions,
     RepairOptions,
     ReplayGainOptions,
     ReviewOptions,
@@ -54,6 +55,7 @@ from .services import (
     run_navidrome_ratings_service,
     run_organize_service,
     run_playlist_export_service,
+    run_playlist_service,
     run_repair_service,
     run_replaygain_service,
     run_review_service,
@@ -108,6 +110,11 @@ _WORKFLOWS: dict[str, dict[str, Any]] = {
     "repair": {"apply": True, "jobs": True, "implemented": True},
     "export": {"apply": False, "jobs": True, "implemented": True},
     "playlist_export": {"apply": False, "jobs": True, "implemented": True},
+    "playlist_create": {"apply": True, "jobs": False, "implemented": True},
+    "playlist_list": {"apply": False, "jobs": False, "implemented": True},
+    "playlist_show": {"apply": False, "jobs": False, "implemented": True},
+    "playlist_delete": {"apply": True, "jobs": False, "implemented": True},
+    "playlist_rename": {"apply": True, "jobs": False, "implemented": True},
     "navidrome_ratings_backup": {"apply": True, "jobs": False, "implemented": True},
     "navidrome_ratings_diff": {"apply": False, "jobs": False, "implemented": True},
     "navidrome_ratings_restore": {"apply": True, "jobs": False, "implemented": True, "dangerous": True},
@@ -231,6 +238,21 @@ class NoqlenForgeCore:
 
     def playlist_export(self, query: str, **options: Any) -> WorkflowResult:
         return self._run("playlist_export", None, options, lambda opts: run_playlist_export_service(_option(PlaylistExportOptions, config=self.config, name=query, **opts)))
+
+    def playlist_create(self, name: str, query: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("playlist_create", None, lambda: run_playlist_service(_option(PlaylistOptions, config=self.config, command="create", name=name, query=query, **_json_options(options))))
+
+    def playlist_list(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("playlist_list", None, lambda: run_playlist_service(_option(PlaylistOptions, config=self.config, command="list", **_json_options(options))))
+
+    def playlist_show(self, name: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("playlist_show", None, lambda: run_playlist_service(_option(PlaylistOptions, config=self.config, command="show", name=name, **_json_options(options))))
+
+    def playlist_delete(self, name: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("playlist_delete", None, lambda: run_playlist_service(_option(PlaylistOptions, config=self.config, command="delete", name=name, **_json_options(options))))
+
+    def playlist_rename(self, old_name: str, new_name: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("playlist_rename", None, lambda: run_playlist_service(_option(PlaylistOptions, config=self.config, command="rename", name=old_name, new_name=new_name, **_json_options(options))))
 
     def navidrome_ratings_backup(self, **options: Any) -> WorkflowResult:
         return self._run("navidrome_ratings_backup", None, options, lambda opts: run_navidrome_ratings_service(_option(NavidromeRatingsOptions, config=self.config, command="backup", **opts)))
@@ -401,6 +423,12 @@ def _option(cls: type, **values: Any) -> Any:
     allowed = {field.name for field in fields(cls)}
     filtered = {key: value for key, value in values.items() if key in allowed}
     return cls(**filtered)
+
+
+def _json_options(options: dict[str, Any]) -> dict[str, Any]:
+    values = dict(options)
+    values.setdefault("output_format", "json")
+    return values
 
 
 @contextmanager

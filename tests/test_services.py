@@ -20,7 +20,7 @@ from noqlen_forge.services.audit_service import AuditOptions, audit_result_from_
 from noqlen_forge.services.lyrics_service import LyricsOptions, run_lyrics_service
 from noqlen_forge.services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
 from noqlen_forge.services.navidrome_service import NavidromePlaylistsOptions, NavidromeRatingsOptions, run_navidrome_playlists_service, run_navidrome_ratings_service
-from noqlen_forge.services.playlist_service import PlaylistExportOptions, render_playlist_export_result, run_playlist_export_service
+from noqlen_forge.services.playlist_service import PlaylistExportOptions, PlaylistOptions, render_playlist_export_result, render_playlist_service_result, run_playlist_export_service, run_playlist_service
 from noqlen_forge.services.report_service import ExportOptions, QueryOptions, build_duplicates_options, build_export_options, build_missing_options, render_report_result, run_export_service, run_query_service
 from noqlen_forge.services.result_helpers import finish_object_result, finish_text_result, first_line, status_from_text_output
 from noqlen_forge.services.types import sanitize_value_for_output, workflow_result_from_dict, workflow_result_to_dict, workflow_result_to_json
@@ -257,6 +257,40 @@ def test_playlist_export_service_returns_artifact(tmp_path: Path) -> None:
     assert result.artifacts[0].path == output.resolve(strict=False)
     assert "Status: OK" in rendered
     assert output.read_text(encoding="utf-8").startswith("#EXTM3U")
+
+
+def test_playlist_service_covers_definition_lifecycle(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    _seed(config, tmp_path / "Library")
+
+    create = run_playlist_service(PlaylistOptions(config, "create", name="Favorites", query="NewJeans", apply=True, output_format="json"))
+    listed = run_playlist_service(PlaylistOptions(config, "list", output_format="json"))
+    shown = run_playlist_service(PlaylistOptions(config, "show", name="Favorites", output_format="json"))
+    renamed = run_playlist_service(PlaylistOptions(config, "rename", name="Favorites", new_name="Renamed", apply=True, output_format="json"))
+    deleted = run_playlist_service(PlaylistOptions(config, "delete", name="Renamed", apply=True, output_format="json"))
+
+    assert create.status == Status.OK
+    assert create.summary["saved"] is True
+    assert listed.counts["playlists"] == 1
+    assert shown.counts["tracks"] >= 1
+    assert renamed.summary["renamed"] is True
+    assert deleted.summary["deleted"] is True
+    assert "output_text" not in deleted.safe_details
+
+
+def test_playlist_cli_create_uses_service_without_changing_output(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    called = {"service": False}
+
+    def fake_service(options: PlaylistOptions) -> WorkflowResult:
+        called["service"] = True
+        return WorkflowResult(Status.OK, [StepResult(1, 1, "playlist smart create", Status.OK)], command="playlist smart create", details={"exit_code": 0, "output_text": "Smart playlist create\nStatus: OK"})
+
+    monkeypatch.setattr(cli, "run_playlist_service", fake_service)
+    args = cli.build_parser().parse_args(["playlist", "smart", "create", "Favorites", "--query", "NewJeans"])
+
+    assert cli.playlist_command(args, config={}) == 0
+    assert called["service"] is True
+    assert capsys.readouterr().out == "Smart playlist create\nStatus: OK\n"
 
 
 def test_playlist_cli_and_service_export_equivalent(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -548,6 +582,7 @@ def test_query_service_and_cli_stdout_json_match(tmp_path: Path, capsys: pytest.
     cli_payload = json.loads(capsys.readouterr().out)
     service_payload = json.loads(service.details["output_text"])
     assert cli_payload["count"] == service_payload["count"]
+    assert service.details["result"]["count"] == service_payload["count"]
 
 
 def test_export_service_and_cli_stdout_json_match(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -561,6 +596,7 @@ def test_export_service_and_cli_stdout_json_match(tmp_path: Path, capsys: pytest
     cli_payload = json.loads(capsys.readouterr().out)
     service_payload = json.loads(service.details["output_text"])
     assert cli_payload["count"] == service_payload["count"]
+    assert service.details["result"]["count"] == service_payload["count"]
 
 
 def test_report_option_builders_are_argparse_free(tmp_path: Path) -> None:

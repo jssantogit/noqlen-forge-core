@@ -38,6 +38,7 @@ def finish_text_result(workflow: WorkflowResult, *, code: int | None = None, out
     workflow.status = final_status
     workflow.mode = mode
     workflow.summary = {"status": final_status.value, "exit_code": exit_code}
+    payload: Any = None
     if output.lstrip().startswith(("{", "[")):
         try:
             payload = json.loads(output)
@@ -48,6 +49,12 @@ def finish_text_result(workflow: WorkflowResult, *, code: int | None = None, out
             if "count" in payload:
                 workflow.counts["items"] = payload["count"]
     workflow.details = {"exit_code": exit_code, "output_text": output}
+    if isinstance(payload, dict):
+        workflow.details["result"] = payload
+        workflow.summary.update({key: payload[key] for key in ("status", "type", "scope", "query", "count") if key in payload})
+    elif isinstance(payload, list):
+        workflow.details["result"] = payload
+        workflow.counts["items"] = len(payload)
     workflow.safe_details = {"exit_code": exit_code}
     if exit_code:
         workflow.errors = [output]

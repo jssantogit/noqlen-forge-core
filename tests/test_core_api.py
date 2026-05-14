@@ -7,6 +7,7 @@ from noqlen_forge.api import ConfigError, NoqlenForgeCore
 from noqlen_forge.importer import ImportResult
 from noqlen_forge.services.types import workflow_result_to_dict, workflow_result_to_json
 from noqlen_forge.workflow import Status, StepResult, WorkflowResult
+from test_export import _config, _seed
 
 
 def test_core_api_import_and_default_init() -> None:
@@ -194,6 +195,24 @@ def test_core_api_jobs_create_status_cancel(tmp_path: Path) -> None:
     assert status.summary["status"] == "pending"
     assert listed.counts["jobs"] == 1
     assert canceled.summary["canceled"] is True
+
+
+def test_core_api_playlist_definition_lifecycle(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    _seed(config, tmp_path / "Library")
+    core = NoqlenForgeCore(config=config)
+
+    created = core.playlist_create("Favorites", "NewJeans", apply=True)
+    listed = core.playlist_list()
+    shown = core.playlist_show("Favorites")
+    renamed = core.playlist_rename("Favorites", "Renamed", apply=True)
+    deleted = core.playlist_delete("Renamed", apply=True)
+
+    assert created.status == Status.OK
+    assert listed.counts["playlists"] == 1
+    assert shown.counts["tracks"] >= 1
+    assert renamed.summary["renamed"] is True
+    assert deleted.summary["deleted"] is True
 
 
 def test_core_api_config_and_db_methods_return_structured_without_printing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
