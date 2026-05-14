@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from noqlen_forge import cli
+from noqlen_forge.services import enrich_service as enrich_service_module
 from noqlen_forge.api import NoqlenForgeCore
 from noqlen_forge.audio import Track
 from noqlen_forge.audit import AuditResult, render_audit
@@ -166,11 +167,36 @@ def test_enrich_service_apply_requires_explicit_confirmation(monkeypatch: pytest
     monkeypatch.setattr("noqlen_forge.services.enrich_service.apply_cleanup", lambda plans, apply: None)
     monkeypatch.setattr("noqlen_forge.services.enrich_service.summarize_cleanup", lambda *args, **kwargs: "cleanup")
     monkeypatch.setattr("noqlen_forge.services.enrich_service.audit_path", lambda path: AuditResult(tracks=[track], bad_fields=[]))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("service called input")))
 
     result = run_enrich_service(EnrichOptions(path=tmp_path / "song.mp3", config={}, apply=True))
 
     assert result.steps[0].status == Status.REVIEW
     assert "requires explicit confirmation" in result.steps[0].summary
+    assert result.summary["requires_confirmation"] is True
+
+
+def test_enrich_cli_restores_service_dependencies_after_confirmation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    original_mb_album_ids = enrich_service_module.mb_album_ids
+    track = Track(path=tmp_path / "song.mp3", format="mp3", album="Album", artist="Artist", title="Song")
+    scored = type("Scored", (), {"score": 90, "release": {"id": "release-1"}})()
+
+    monkeypatch.setattr(cli, "target_kind", lambda path: "single")
+    monkeypatch.setattr(cli, "read_tracks", lambda path: [track])
+    monkeypatch.setattr(cli, "mb_album_ids", lambda tracks: set())
+    monkeypatch.setattr(cli, "search_releases", lambda tracks: [{}])
+    monkeypatch.setattr(cli, "hydrate_releases", lambda releases: releases)
+    monkeypatch.setattr(cli, "rank_releases", lambda tracks, releases: [scored])
+    monkeypatch.setattr(cli, "plan_cleanup", lambda tracks, release_date="": [])
+    monkeypatch.setattr(cli, "apply_cleanup", lambda plans, apply: None)
+    monkeypatch.setattr(cli, "summarize_cleanup", lambda *args, **kwargs: "cleanup")
+    monkeypatch.setattr(cli, "audit_path", lambda path: AuditResult(tracks=[track], bad_fields=[]))
+    monkeypatch.setattr("builtins.input", lambda _: "n")
+
+    assert cli.enrich(tmp_path / "song.mp3", apply=True, force=False, plain=True) == 1
+
+    assert enrich_service_module.mb_album_ids is original_mb_album_ids
+    assert "Cancelled" in capsys.readouterr().out
 
 
 def test_enrich_cli_uses_service_renderer(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

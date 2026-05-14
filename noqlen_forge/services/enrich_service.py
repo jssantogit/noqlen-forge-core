@@ -151,6 +151,12 @@ def run_enrich_service(options: EnrichOptions) -> WorkflowResult:
     status = combine_status(*(step.status for step in steps)) if steps else Status.OK
     if errors:
         status = Status.FAIL
+    requires_confirmation = any(step.status == Status.REVIEW and "explicit confirmation" in step.summary for step in steps)
+    summary = {"status": status.value, "targets": len(target_details), "planned_writes": planned_writes, "applied_writes": applied_writes, "stages": _stage_selection_summary(selected)}
+    safe_details: dict[str, Any] = {"targets": [_safe_target_details(item) for item in target_details], "stage_selection": selected}
+    if requires_confirmation:
+        summary["requires_confirmation"] = True
+        safe_details["requires_confirmation"] = True
     return WorkflowResult(
         status,
         steps,
@@ -161,10 +167,10 @@ def run_enrich_service(options: EnrichOptions) -> WorkflowResult:
         mode="apply" if options.apply else "dry-run",
         started_at=started_at,
         finished_at=datetime.now(timezone.utc),
-        summary={"status": status.value, "targets": len(target_details), "planned_writes": planned_writes, "applied_writes": applied_writes, "stages": _stage_selection_summary(selected)},
+        summary=summary,
         counts={"targets": len(target_details), "steps": len(steps), "planned_writes": planned_writes, "applied_writes": applied_writes},
         details={"targets": target_details, "stage_selection": selected},
-        safe_details={"targets": [_safe_target_details(item) for item in target_details], "stage_selection": selected},
+        safe_details=safe_details,
         warnings=warnings,
         errors=errors,
         elapsed_seconds=time.perf_counter() - started,

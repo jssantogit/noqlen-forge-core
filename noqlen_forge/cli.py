@@ -1960,9 +1960,8 @@ def enrich(
             _print_stage_done(int(event["index"]), int(event["total"]), str(event["name"]), str(event["status"]), str(event.get("summary") or ""))
         _print_verbose(str(event.get("detail") or ""), bool(event.get("detail")))
 
-    _sync_enrich_service_dependencies()
-    result = run_enrich_service(
-        EnrichOptions(
+    def make_options(confirm_medium_confidence: bool = False) -> EnrichOptions:
+        return EnrichOptions(
             path=path,
             config=config,
             apply=apply,
@@ -2016,15 +2015,56 @@ def enrich(
             debug=debug,
             advanced=advanced,
             explicit_flags=explicit_flags or set(),
+            confirm_medium_confidence=confirm_medium_confidence,
             event_handler=on_event,
         )
-    )
-    for context in list(active_contexts.values()):
-        context.__exit__(None, None, None)
+
+    previous_dependencies = _sync_enrich_service_dependencies()
+    try:
+        result = run_enrich_service(make_options())
+        for context in list(active_contexts.values()):
+            context.__exit__(None, None, None)
+        if result.summary.get("requires_confirmation"):
+            answer = input("Apply medium-confidence MusicBrainz match? [y/N] ").strip().lower()
+            if answer not in {"y", "yes", "s", "sim"}:
+                print("Cancelled")
+                return 1
+            result = run_enrich_service(make_options(confirm_medium_confidence=True))
+            for context in list(active_contexts.values()):
+                context.__exit__(None, None, None)
+    finally:
+        _restore_enrich_service_dependencies(previous_dependencies)
     return _render_enrich_result(result, stages_already_rendered=rendered_events)
 
 
-def _sync_enrich_service_dependencies() -> None:
+def _sync_enrich_service_dependencies() -> dict[str, object]:
+    names = [
+        "read_tracks",
+        "target_kind",
+        "mb_album_ids",
+        "get_tag",
+        "get_release",
+        "search_releases",
+        "hydrate_releases",
+        "rank_releases",
+        "plan_cleanup",
+        "apply_cleanup",
+        "summarize_cleanup",
+        "audit_path",
+        "analyze_bpm_path",
+        "analyze_key_path",
+        "analyze_features_path",
+        "analyze_lastfm_tags",
+        "analyze_mood_path",
+        "replaygain_path",
+        "database_path",
+        "scan_library",
+        "process_cover",
+        "process_lyrics",
+        "_metadata_stage",
+        "_acoustid_stage",
+    ]
+    previous = {name: getattr(enrich_service_module, name) for name in names}
     enrich_service_module.read_tracks = read_tracks
     enrich_service_module.target_kind = target_kind
     enrich_service_module.mb_album_ids = mb_album_ids
@@ -2060,6 +2100,12 @@ def _sync_enrich_service_dependencies() -> None:
 
     enrich_service_module._metadata_stage = metadata_stage
     enrich_service_module._acoustid_stage = acoustid_stage
+    return previous
+
+
+def _restore_enrich_service_dependencies(previous: dict[str, object]) -> None:
+    for name, value in previous.items():
+        setattr(enrich_service_module, name, value)
 
 
 def _print_enrich_header(tracks, apply: bool, target: Path | None = None) -> None:
