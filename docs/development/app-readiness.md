@@ -71,6 +71,24 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 
 ## Blocker Status
 
+### Final Readiness Audit
+
+Status: passed. The final Forge Core readiness audit found no hard blocker for beginning Noqlen Flux planning. Forge Core is ready to close this public hardening, CLI usability, and app-readiness cleanup phase, while keeping the remaining structured-result and Core API gaps visible as non-blocking follow-ups.
+
+Noqlen Flux planning may begin. Flux implementation should not start until scope, safety model, fake validation strategy, and integration boundaries are defined. Noqlen Anchor remains future local service/server scope. Noqlen Aria remains future app/interface scope, and Aria or mobile implementation must not start yet.
+
+Validation summary:
+
+- No tracked or staged changes were present during the audit.
+- `noqlen-forge --help` passed.
+- `noqlen-forge dev check --smoke` passed.
+- Python `py_compile` validation passed.
+- Focused pytest completed successfully with 595 passed and 269 deselected.
+- No final validation check failed.
+- No tracked generated `site/` files were found.
+- No tracked legacy identity references were found.
+- No real-library workflows were run.
+
 ### Resolved Blockers
 
 - `enrich` now has an app-ready service/Core API boundary instead of being CLI-only.
@@ -79,18 +97,16 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 - Metadata/review, maintenance/library, provider/audio, and job workflows have broad service/Core API coverage after the recent refactors.
 - Config path/init/show and DB path/init/status/scan/query/explain now have service/Core API paths with structured summaries for future controllers.
 
-### Remaining Blockers Before Flux Planning
-
-- Structured result coverage is broad but mixed. Several services still adapt legacy `(code, output)` functions or result objects and keep important details in `output_text`.
-- Query/report variants and playlist operations beyond export still lack full Core API parity.
-- Audio analysis beyond ReplayGain still runs mostly through direct analysis modules instead of dedicated service/Core API methods.
-
 ### Non-Blocking Follow-Ups
 
-- Enrich still needs richer structured stage results, planned/applied changes, artifacts, and reusable progress/event details, but it is no longer blocked by the medium-confidence confirmation issue.
-- Navidrome services are safe to call with fake clients and structured summaries, but they still parse JSON/text output from lower-level functions rather than building results directly.
-- Jobs are structured at the storage/service/Core API layer, but CLI job rendering remains custom and should be normalized.
-- Import, organize, review, maintenance, cover, lyrics, and metadata workflows should continue replacing text wrappers with structured decisions, warnings, conflicts, artifacts, and applied changes.
+- DB scan/query/explain should expose richer structured rows, plans, and diagnostics.
+- Enrich still needs richer structured stage details, planned/applied changes, artifacts, plans, and reusable progress/event details.
+- Remaining `output_text` wrappers should be replaced gradually while preserving CLI stdout contracts.
+- Query and report variants need more first-class Core API methods.
+- BPM, key, mood, and feature analysis need service/Core API adapters beyond the current ReplayGain coverage.
+- Playlist refresh and other non-export playlist operations need service/Core API parity.
+- Jobs should share CLI rendering from service/Core API results instead of maintaining custom rendering paths.
+- Structured result hardening should continue across import, organize, review, maintenance, cover, lyrics, metadata, and Navidrome workflows.
 - CLI rendering still contains direct `print()` and progress handling. This is acceptable for the terminal adapter as long as service/Core API callers remain silent and structured.
 - Safety remains strongest where services build `OperationContext`/`SafetyContext`; any remaining CLI-only apply path needs equivalent guardrails until migrated.
 
