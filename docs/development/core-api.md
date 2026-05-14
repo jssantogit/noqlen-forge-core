@@ -17,7 +17,7 @@ for step in result.steps:
 
 Every public workflow method returns `WorkflowResult`. Use `workflow_result_to_dict()` or `workflow_result_to_json()` from `noqlen_forge.services.types` for machine-readable output.
 
-Metadata/review-oriented workflows currently exposed through stable service adapters include `metadata()`, `candidates()`, `apply_mbid()`, and `review()`. Enrich, maintenance/library, ReplayGain, playlist export, jobs, and Navidrome ratings/playlists also have Core API service paths. `apply_mbid(..., apply=True)` and `enrich(..., apply=True)` require explicit options for medium-confidence matches in non-terminal callers; interactive confirmation remains a CLI-only compatibility path.
+Metadata/review-oriented workflows currently exposed through stable service adapters include `metadata()`, `candidates()`, `apply_mbid()`, and `review()`. Config path/init/show, DB path/init/status/scan/query/explain, enrich, maintenance/library, ReplayGain, playlist export, jobs, and Navidrome ratings/playlists also have Core API service paths. `apply_mbid(..., apply=True)` and `enrich(..., apply=True)` require explicit options for medium-confidence matches in non-terminal callers; interactive confirmation remains a CLI-only compatibility path.
 
 ## Services And CLI
 
@@ -48,6 +48,6 @@ There is no background thread, daemon, or parallel executor. A future mobile bri
 
 `core.capabilities()` returns a manifest with workflow names, apply support, job support, implementation status, dangerous operations, and schema version. Future Noqlen clients should read this manifest instead of hardcoding available workflows.
 
-Config and DB operations are still documented as app-readiness gaps rather than complete Core API workflow methods. Workflows without a silent service adapter should return a structured `FAIL` result with `NotImplementedWorkflowError` until their service contract is stabilized.
+Config and DB operations now return `WorkflowResult` objects through silent service adapters. Workflows without a silent service adapter should return a structured `FAIL` result with `NotImplementedWorkflowError` until their service contract is stabilized.
 
 See [App-readiness boundary audit](app-readiness.md) for the current service, Core API, and terminal-coupling readiness matrix.

@@ -58,6 +58,8 @@ Use field registry helpers for field names, aliases, protected fields, missing/h
 
 Use existing DB helpers for lookups, upserts, operation recording, and migrations before adding raw SQL to a service or CLI adapter. If repeated query shapes appear, add a small helper or targeted index with tests instead of copying SQL.
 
+Config path/init/show and DB path/init/status/scan/query/explain are service-backed and exposed through `NoqlenForgeCore`. Preserve the CLI text contract in renderers while keeping service results structured and non-interactive.
+
 ## Providers
 
 New providers should follow the closest existing provider contract, return structured candidates/results with confidence and match reasons, and keep network calls mockable. Tests and MusicLab must use fake/mock providers or clients rather than real external services.

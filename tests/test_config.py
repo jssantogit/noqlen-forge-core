@@ -6,6 +6,7 @@ import tomllib
 from noqlen_forge import cli
 from noqlen_forge.config import config_path, default_config, load_config, merge_config, save_default_config
 from noqlen_forge.lastfm import get_lastfm_api_key
+from noqlen_forge.services.config_service import ConfigOptions, render_config_service_result, run_config_service
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -174,6 +175,23 @@ def test_config_init_creates_file(monkeypatch, tmp_path, capsys) -> None:
     assert code == 0
     assert (tmp_path / "noqlen-forge" / "config.toml").exists()
     assert "Created config:" in capsys.readouterr().out
+
+
+def test_config_service_path_init_and_show_are_structured(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config = default_config()
+    config["apis"]["lastfm_api_key"] = "abcdefghijkl1234"
+
+    path_result = run_config_service(ConfigOptions("path"))
+    init_result = run_config_service(ConfigOptions("init"))
+    show_result = run_config_service(ConfigOptions("show", config=config))
+    code, output = render_config_service_result(show_result)
+
+    assert path_result.summary["path"] == tmp_path / "noqlen-forge" / "config.toml"
+    assert init_result.summary["created"] is True
+    assert show_result.safe_details["config"]["apis"]["lastfm_api_key"] == "abcd...1234"
+    assert code == 0
+    assert "abcdefghijkl1234" not in output
 
 
 def test_config_init_does_not_overwrite_without_force(monkeypatch, tmp_path) -> None:

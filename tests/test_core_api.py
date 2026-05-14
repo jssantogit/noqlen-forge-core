@@ -194,3 +194,19 @@ def test_core_api_jobs_create_status_cancel(tmp_path: Path) -> None:
     assert status.summary["status"] == "pending"
     assert listed.counts["jobs"] == 1
     assert canceled.summary["canceled"] is True
+
+
+def test_core_api_config_and_db_methods_return_structured_without_printing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = {"database": {"path": str(tmp_path / "library.db")}, "apis": {"lastfm_api_key": "abcdefghijkl1234"}}
+    core = NoqlenForgeCore(config=config)
+
+    config_result = core.config_show()
+    db_path = core.db_path()
+    db_init = core.db_init()
+    db_status = core.db_status()
+
+    assert config_result.safe_details["config"]["apis"]["lastfm_api_key"] == "abcd...1234"
+    assert db_path.summary["path"] == tmp_path / "library.db"
+    assert db_init.summary["initialized"] is True
+    assert db_status.summary["schema_version"] > 0
+    assert capsys.readouterr().out == ""

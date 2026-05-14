@@ -3,6 +3,8 @@ from __future__ import annotations
 from .audit_service import AuditOptions, run_audit_service
 from .cli_helpers import build_operation_context, build_safety_context, exit_code_from_status, handle_cli_error, load_cli_config, parse_fields, parse_output_format, parse_provider_list, render_service_result, render_structured_service_result, render_workflow_result
 from .core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
+from .config_service import ConfigOptions, run_config_service
+from .database_service import DatabaseOptions, run_database_service
 from .enrich_service import EnrichOptions, run_enrich_service
 from .library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
 from .library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
@@ -21,6 +23,8 @@ __all__ = [
     "CandidatesOptions",
     "CleanupOptions",
     "CoverOptions",
+    "ConfigOptions",
+    "DatabaseOptions",
     "DuplicatesOptions",
     "ExportOptions",
     "EnrichOptions",
@@ -57,6 +61,8 @@ __all__ = [
     "render_structured_service_result",
     "render_workflow_result",
     "run_cover_service",
+    "run_config_service",
+    "run_database_service",
     "run_batch_service",
     "run_cleanup_service",
     "run_duplicates_service",

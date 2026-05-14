@@ -13,9 +13,9 @@ from .audit import audit_path, render_audit, render_final_audit
 from .audio import audio_files, get_tag, mb_album_ids, read_tracks, target_kind
 from .batch import batch_targets
 from .cleanup import apply_cleanup, plan_cleanup, summarize_cleanup
-from .config import config_path, get_config_value, load_config, masked_config, render_config, save_default_config
+from .config import get_config_value, load_config
 from .cover import CoverResult, cover_path, process_cover
-from .db import database_path, db_explain, db_query, db_status, init_db, render_status, scan_library
+from .db import database_path, scan_library
 from .duplicates import duplicates_path
 from .dev import dev_command
 from .export import export_data
@@ -41,6 +41,8 @@ from .smart_playlists import smart_create, smart_delete, smart_export, smart_lis
 from .services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from .services.cli_helpers import load_cli_config, parse_fields, render_service_result, render_structured_service_result
 from .services.core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
+from .services.config_service import ConfigOptions, render_config_service_result, run_config_service
+from .services.database_service import DatabaseOptions, render_database_service_result, run_database_service
 from .services import enrich_service as enrich_service_module
 from .services.enrich_service import EnrichOptions, run_enrich_service
 from .services.library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
@@ -963,7 +965,7 @@ Dry-run is the default posture. Review planned writes before using --apply. Use 
         usage="noqlen-forge analyze [OPTIONS] path",
         description="""Analyze optional local audio features and enrichment signals.
 
-Dry-run is the default. With --apply, selected analysis results may write supported tags or local metadata fields. Some options may call configured external services, such as Last.fm. Key detection uses native optional backends: `portable_basic` is the lightweight default, `disabled` skips analysis, and `auto` follows config order.
+Dry-run is the default. With --apply, selected analysis results may write supported tags or local metadata fields. Some options may call configured external services, such as Last.fm. Optional key detection backend values are auto, portable_basic, or disabled.
 Review planned writes before using --apply. Use MusicLab/fakes before testing workflows on important libraries.
 """,
         epilog="""Examples:
@@ -1393,49 +1395,34 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def config_command(command: str, force: bool = False, config: dict | None = None) -> int:
-    path = config_path()
-    if command == "path":
-        print(path)
-        return 0
-    if command == "init":
-        if path.exists() and not force:
-            print(f"Config already exists: {path}")
-            print("Use --force to overwrite.")
-            return 1
-        saved = save_default_config(path)
-        print(f"Created config: {saved}")
-        return 0
-    if command == "show":
-        print(render_config(masked_config(config or load_config()), mask_secrets=False))
-        return 0
-    return 1
+    result = run_config_service(ConfigOptions(command=command, force=force, config=config))
+    code, output = render_config_service_result(result)
+    print(output)
+    return code
 
 
 def db_command(args: argparse.Namespace, config: dict | None = None) -> int:
     active_config = config or load_config()
-    if args.db_command == "path":
-        print(database_path(active_config))
-        return 0
-    if args.db_command == "init":
-        print(f"Initialized database: {init_db(active_config)}")
-        return 0
-    if args.db_command == "status":
-        print(render_status(db_status(active_config)))
-        return 0
-    if args.db_command == "scan":
-        code, output = scan_library(active_config, args.path, apply=args.apply, verbose=args.verbose)
-        print(output)
-        return code
-    if args.db_command == "query":
-        target = "albums" if args.albums else "files" if args.files else "tracks"
-        code, output = db_query(active_config, args.query, target=target, missing_field=args.missing, limit=args.limit, output_format=args.format, verbose=args.verbose, debug=args.debug)
-        print(output)
-        return code
-    if args.db_command == "explain":
-        code, output = db_explain(active_config, args.path, field=args.field, verbose=args.verbose, debug=args.debug)
-        print(output)
-        return code
-    return 1
+    target = "albums" if getattr(args, "albums", False) else "files" if getattr(args, "files", False) else "tracks"
+    result = run_database_service(
+        DatabaseOptions(
+            command=args.db_command,
+            config=active_config,
+            path=getattr(args, "path", None),
+            query=getattr(args, "query", ""),
+            target=target,
+            missing_field=getattr(args, "missing", None),
+            limit=getattr(args, "limit", 50),
+            output_format=getattr(args, "format", "text"),
+            apply=getattr(args, "apply", False),
+            field=getattr(args, "field", None),
+            verbose=getattr(args, "verbose", False),
+            debug=getattr(args, "debug", False),
+        )
+    )
+    code, output = render_database_service_result(result, output_format=getattr(args, "format", "text"))
+    print(output)
+    return code
 
 
 def playlist_command(args: argparse.Namespace, config: dict | None = None) -> int:

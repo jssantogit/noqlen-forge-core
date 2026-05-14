@@ -44,15 +44,15 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 - Jobs store sanitized workflow results, steps, events, and progress in SQLite without requiring a background daemon.
 - MusicLab, fakes, and fixtures give future service migrations a safe validation path.
 - Enrich now has a non-interactive service boundary and Core API method; medium-confidence apply requires explicit confirmation options outside the CLI.
-- Metadata, review, maintenance, library, provider/audio, Navidrome, report/export, playlist export, and job operations have service boundaries, although many still wrap legacy text or object results.
+- Config, database, metadata, review, maintenance, library, provider/audio, Navidrome, report/export, playlist export, and job operations have service boundaries, although some still wrap legacy text or object results.
 - Navidrome ratings and playlist services accept injectable clients and have fake-client tests for safe service/Core API execution.
 
 ## Workflow Readiness Matrix
 
 | Workflow area | Service-backed | Core API exposed | Structured result | Terminal coupling | App-readiness | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `config` | No | No | No | Medium | Not ready | Add read-only config path/show service methods and an explicit init/write plan before Core API exposure. |
-| `db` | Partial | No | Partial | Medium | Partial | Wrap `db status`, `scan`, `query`, and `explain` in explicit DB services with structured counts, SQL-safe summaries, artifacts, and Core API methods. |
+| `config` | Yes | Yes | Yes | Low | Ready | Keep CLI rendering separate and preserve masked config output. |
+| `db` | Yes | Yes | Partial | Low | Partial | Continue replacing legacy rendered text in scan/query/explain details with richer structured rows, plans, and diagnostics. |
 | `audit` | Yes | Yes | Yes | Low | Ready | Keep CLI rendering separate and expand result details only when needed by clients. |
 | `enrich` | Yes | Yes | Partial | Medium | Partial | Continue replacing stage text summaries with structured planned/applied changes, stage artifacts, warnings, and progress events. |
 | `import` | Yes | Yes | Partial | Medium | Partial | Replace remaining object/text wrapping with structured stage plans, enrichment sub-results, artifacts, and apply details. |
@@ -77,11 +77,10 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 - Medium-confidence enrich apply no longer silently proceeds and no longer depends on service-side interaction; service/Core API callers must pass an explicit confirmation option.
 - Navidrome ratings and playlists now have service/Core API methods and injectable-client tests, so controllers do not need to scrape CLI output to run those workflows.
 - Metadata/review, maintenance/library, provider/audio, and job workflows have broad service/Core API coverage after the recent refactors.
+- Config path/init/show and DB path/init/status/scan/query/explain now have service/Core API paths with structured summaries for future controllers.
 
 ### Remaining Blockers Before Flux Planning
 
-- `config` has no service/Core API boundary yet.
-- DB workflows are still mostly direct CLI/module paths; query has a report service wrapper, but DB status, scan, and explain need explicit services and Core API methods.
 - Structured result coverage is broad but mixed. Several services still adapt legacy `(code, output)` functions or result objects and keep important details in `output_text`.
 - Query/report variants and playlist operations beyond export still lack full Core API parity.
 - Audio analysis beyond ReplayGain still runs mostly through direct analysis modules instead of dedicated service/Core API methods.

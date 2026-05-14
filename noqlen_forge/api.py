@@ -18,7 +18,9 @@ from .services import (
     AuditOptions,
     ApplyMBIDOptions,
     CandidatesOptions,
+    ConfigOptions,
     CoverOptions,
+    DatabaseOptions,
     EnrichOptions,
     ImportOptions,
     BatchOptions,
@@ -39,6 +41,8 @@ from .services import (
     run_apply_mbid_service,
     run_candidates_service,
     run_cover_service,
+    run_config_service,
+    run_database_service,
     run_enrich_service,
     run_export_service,
     run_import_service,
@@ -112,6 +116,15 @@ _WORKFLOWS: dict[str, dict[str, Any]] = {
     "navidrome_playlists_diff": {"apply": False, "jobs": False, "implemented": True},
     "navidrome_playlists_push": {"apply": True, "jobs": False, "implemented": True},
     "navidrome_playlists_push_smart": {"apply": True, "jobs": False, "implemented": True},
+    "config_path": {"apply": False, "jobs": False, "implemented": True},
+    "config_init": {"apply": True, "jobs": False, "implemented": True},
+    "config_show": {"apply": False, "jobs": False, "implemented": True},
+    "db_path": {"apply": False, "jobs": False, "implemented": True},
+    "db_init": {"apply": True, "jobs": False, "implemented": True},
+    "db_status": {"apply": False, "jobs": False, "implemented": True},
+    "db_scan": {"apply": True, "jobs": False, "implemented": True},
+    "db_query": {"apply": False, "jobs": False, "implemented": True},
+    "db_explain": {"apply": False, "jobs": False, "implemented": True},
 }
 
 
@@ -126,8 +139,8 @@ class NoqlenForgeCore:
     def __init__(self, config: dict[str, Any] | None = None, config_path: str | Path | None = None, profile: str | None = None, automated_validation: bool | None = None) -> None:
         if config is not None and config_path is not None:
             raise ConfigError("Use either config or config_path, not both")
-        self.config_path = Path(config_path).expanduser() if config_path is not None else None
-        self.config = _load_api_config(config=config, config_path=self.config_path)
+        self._config_path = Path(config_path).expanduser() if config_path is not None else None
+        self.config = _load_api_config(config=config, config_path=self._config_path)
         self.profile = profile
         self.automated_validation = automated_validation
 
@@ -242,6 +255,35 @@ class NoqlenForgeCore:
 
     def navidrome_playlists_push_smart(self, name: str, **options: Any) -> WorkflowResult:
         return self._run("navidrome_playlists_push_smart", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="push-smart", smart_name=name, **opts)))
+
+    def config_path(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("config.path", None, lambda: run_config_service(_option(ConfigOptions, command="path", config=self.config, **options)))
+
+    def config_init(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("config.init", None, lambda: run_config_service(_option(ConfigOptions, command="init", config=self.config, **options)))
+
+    def config_show(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("config.show", None, lambda: run_config_service(_option(ConfigOptions, command="show", config=self.config, **options)))
+
+    def db_path(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("db.path", None, lambda: run_database_service(_option(DatabaseOptions, command="path", config=self.config, **options)))
+
+    def db_init(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("db.init", None, lambda: run_database_service(_option(DatabaseOptions, command="init", config=self.config, **options)))
+
+    def db_status(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("db.status", None, lambda: run_database_service(_option(DatabaseOptions, command="status", config=self.config, **options)))
+
+    def db_scan(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._call_silently("db.scan", target, lambda: run_database_service(_option(DatabaseOptions, command="scan", config=self.config, path=target, **options)))
+
+    def db_query(self, query: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("db.query", None, lambda: run_database_service(_option(DatabaseOptions, command="query", config=self.config, query=query, **options)))
+
+    def db_explain(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._call_silently("db.explain", target, lambda: run_database_service(_option(DatabaseOptions, command="explain", config=self.config, path=target, **options)))
 
     def create_job(self, kind: str, target: str | Path | None = None, options: dict[str, Any] | None = None, **job_options: Any) -> WorkflowResult:
         target_text = "" if target is None else str(_path(target))

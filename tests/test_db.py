@@ -28,6 +28,7 @@ from noqlen_forge.db import (
     upsert_file,
     upsert_track,
 )
+from noqlen_forge.services.database_service import DatabaseOptions, render_database_service_result, run_database_service
 
 pytestmark = pytest.mark.db
 
@@ -81,6 +82,19 @@ def test_db_init_creates_tables(tmp_path) -> None:
         tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
 
     assert {"albums", "tracks", "files", "provider_runs", "field_decisions", "schema_migrations", "jobs", "job_steps", "job_events"}.issubset(tables)
+
+
+def test_database_service_path_init_and_status_are_structured(tmp_path) -> None:
+    config = _config(tmp_path / "library.db")
+
+    path_result = run_database_service(DatabaseOptions("path", config))
+    init_result = run_database_service(DatabaseOptions("init", config))
+    status_result = run_database_service(DatabaseOptions("status", config))
+
+    assert path_result.summary["path"] == tmp_path / "library.db"
+    assert init_result.summary["initialized"] is True
+    assert status_result.summary["schema_version"] == SCHEMA_VERSION
+    assert status_result.counts["tracks"] == 0
 
 
 def test_migrations_are_idempotent(tmp_path) -> None:
@@ -196,6 +210,22 @@ def test_db_scan_dry_run_does_not_write(monkeypatch, tmp_path) -> None:
     assert "Mode: DRY-RUN" in output
     assert "would add 1 albums, 1 tracks, 1 files" in output
     assert not (tmp_path / "library.db").exists()
+
+
+def test_database_service_scan_returns_structured_summary(monkeypatch, tmp_path) -> None:
+    config = _config(tmp_path / "library.db")
+    audio = tmp_path / "song.mp3"
+    audio.write_bytes(b"not real audio")
+    monkeypatch.setattr("noqlen_forge.db.read_track", lambda path: _track(path))
+
+    result = run_database_service(DatabaseOptions("scan", config, path=tmp_path))
+    code, output = render_database_service_result(result)
+
+    assert code == 0
+    assert result.mode == "dry-run"
+    assert result.counts == {"albums": 1, "tracks": 1, "files": 1}
+    assert result.summary["files_read"] == {"read": 1, "total": 1}
+    assert "Mode: DRY-RUN" in output
 
 
 def test_db_scan_apply_writes_albums_tracks_files(monkeypatch, tmp_path) -> None:
@@ -388,6 +418,17 @@ def test_db_query_searches_artist(tmp_path) -> None:
     assert "RESCENE" not in output
 
 
+def test_database_service_query_returns_safe_rows(tmp_path) -> None:
+    config = _config(tmp_path / "library.db")
+    _seed_query_db(config, tmp_path)
+
+    result = run_database_service(DatabaseOptions("query", config, query="artist:Ne Obliviscaris"))
+
+    assert result.counts["results"] == 2
+    assert result.safe_details["rows"][0]["artist"] == "Ne Obliviscaris"
+    assert "rendered" in result.details
+
+
 def test_db_query_searches_album(tmp_path) -> None:
     config = _config(tmp_path / "library.db")
     _seed_query_db(config, tmp_path)
@@ -538,6 +579,17 @@ def test_db_explain_shows_provider_runs(tmp_path) -> None:
     assert "Last enrich:" in output
     assert "discogs" in output
     assert "candidate discogs:123 selected" in output
+
+
+def test_database_service_explain_returns_safe_diagnostic(tmp_path) -> None:
+    config = _config(tmp_path / "library.db")
+    urn_dir, _ = _seed_query_db(config, tmp_path)
+
+    result = run_database_service(DatabaseOptions("explain", config, path=urn_dir, field="style"))
+
+    assert result.summary["found"] is True
+    assert result.safe_details["diagnostic"]["field"] == "style"
+    assert "these are " + "full " + "lyrics" not in result.details["rendered"]
 
 
 def test_db_explain_field_filters_decisions(tmp_path) -> None:
