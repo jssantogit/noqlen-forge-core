@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from ..importer import ImportResult, import_path
 from ..organize import OrganizeResult, organize_path
-from ..workflow import OperationContext, StepResult, WorkflowRunner
+from ..workflow import OperationContext, PlannedChange, StepResult, WorkflowRunner
 from .result_helpers import finish_object_result, first_line, status_from_result
 
 EnrichRunner = Callable[[Path, bool, bool, bool, bool, bool, bool, bool], int]
@@ -56,7 +56,14 @@ def run_organize_service(options: OrganizeOptions):
         return StepResult(index, total, "Organize", status_from_result(result.status), first_line(result.output))
 
     workflow = WorkflowRunner(context).run([process])
-    return finish_object_result(workflow, state.get("result"), mode="apply" if options.apply else "dry-run")
+    result = finish_object_result(workflow, state.get("result"), mode="apply" if options.apply else "dry-run")
+    organize_result = state.get("result")
+    if organize_result is not None:
+        result.counts = {"copied": organize_result.copied, "moved": organize_result.moved, "skipped": organize_result.skipped, "conflicts": organize_result.conflicts, "items": len(organize_result.items or [])}
+        result.summary.update({"copied": organize_result.copied, "moved": organize_result.moved, "skipped": organize_result.skipped, "conflicts": organize_result.conflicts})
+        result.planned_changes = _organize_changes(organize_result)
+        result.safe_details.update({"items": _organize_item_summary(organize_result)})
+    return result
 
 
 def run_import_service(options: ImportOptions):
@@ -70,4 +77,20 @@ def run_import_service(options: ImportOptions):
         return StepResult(index, total, "Import", status_from_result(result.status), first_line(result.output))
 
     workflow = WorkflowRunner(context).run([process])
-    return finish_object_result(workflow, state.get("result"), mode="apply" if options.apply else "dry-run")
+    result = finish_object_result(workflow, state.get("result"), mode="apply" if options.apply else "dry-run")
+    import_result = state.get("result")
+    if import_result is not None:
+        result.counts = {"imported": import_result.imported, "copied": import_result.copied, "moved": import_result.moved, "skipped": import_result.skipped, "conflicts": import_result.conflicts}
+        result.summary.update({"imported": import_result.imported, "copied": import_result.copied, "moved": import_result.moved, "skipped": import_result.skipped, "conflicts": import_result.conflicts})
+    return result
+
+
+def _organize_changes(result: OrganizeResult) -> list[PlannedChange]:
+    changes: list[PlannedChange] = []
+    for item in result.items or []:
+        changes.append(PlannedChange(item.source, "file", "path", old_value=item.source, new_value=item.destination, action=item.action, source="organize", reason=item.reason, safe_preview=f"{item.action}: {item.source} -> {item.destination}"))
+    return changes
+
+
+def _organize_item_summary(result: OrganizeResult) -> list[dict[str, str]]:
+    return [{"source": str(item.source), "destination": str(item.destination), "action": item.action, "reason": item.reason} for item in result.items or []]

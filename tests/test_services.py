@@ -10,6 +10,7 @@ from noqlen_forge.safety import SafetyError
 from noqlen_forge.services.cli_helpers import exit_code_from_status, parse_fields, render_structured_service_result
 from noqlen_forge.services.core_service import CoverOptions, run_cover_service
 from noqlen_forge.services.library_service import OrganizeOptions, run_organize_service
+from noqlen_forge.services.library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
 from noqlen_forge.services.maintenance_service import SyncOptions, run_sync_service
 from noqlen_forge.services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from noqlen_forge.services.lyrics_service import LyricsOptions, run_lyrics_service
@@ -297,6 +298,32 @@ def test_organize_cli_uses_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert cli.main(["organize", str(tmp_path), "--library", str(tmp_path / "Library")]) == 0
     assert called["service"] is True
     assert capsys.readouterr().out == "Organize dry\n"
+
+
+def test_cleanup_service_returns_structured_plan(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    track = Track(path=tmp_path / "song.mp3", format="mp3", tags={"bpm": ["300"]})
+    monkeypatch.setattr("noqlen_forge.services.library_maintenance_service.read_tracks", lambda path: [track])
+    monkeypatch.setattr("noqlen_forge.services.library_maintenance_service.apply_cleanup", lambda plans, apply: None)
+
+    result = run_cleanup_service(CleanupOptions(tmp_path / "Album"))
+
+    assert result.status == Status.DRY
+    assert result.counts["removals"] == 1
+    assert result.planned_changes[0].action == "remove"
+    assert "output_text" not in result.safe_details
+
+
+def test_batch_service_is_non_interactive_and_structured(tmp_path: Path) -> None:
+    for index in range(21):
+        album = tmp_path / f"Album {index}"
+        album.mkdir()
+        (album / "01.mp3").touch()
+
+    result = run_batch_service(BatchOptions(tmp_path, apply=True, recursive=True, process=lambda target, apply: 0))
+
+    assert result.status == Status.FAIL
+    assert result.summary["cancelled"] is True
+    assert result.counts["targets"] == 21
 
 
 def test_sync_cli_uses_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

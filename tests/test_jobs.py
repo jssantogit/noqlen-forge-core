@@ -12,6 +12,7 @@ from noqlen_forge.config import default_config
 from noqlen_forge.db import apply_migrations, connect
 from noqlen_forge.jobs import JobContext, JobOptions, JobStore, JobStatus, resume_job
 from noqlen_forge.safety import SafetyError
+from noqlen_forge.services.job_service import JobsOptions, run_jobs_service
 from noqlen_forge.workflow import SafetyContext, Status, StepResult, WorkflowResult
 
 
@@ -150,6 +151,19 @@ def test_jobs_cli_list_status_cancel_and_json(tmp_path: Path, monkeypatch: pytes
 
     assert cli.main(["jobs", "cancel", job_id]) == 0
     assert "canceled" in capsys.readouterr().out
+
+
+def test_jobs_service_returns_structured_status(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    store = JobStore(config)
+    job_id = store.create_job(JobOptions("audit", target="Album"))
+    store.save_workflow_result(job_id, WorkflowResult(Status.OK, [StepResult(1, 1, "Read tags", Status.OK, "1 file")], command="audit", summary={"message": "done"}))
+
+    result = run_jobs_service(JobsOptions(config, "status", job_id=job_id))
+
+    assert result.status == Status.OK
+    assert result.details["job"]["id"] == job_id
+    assert result.details["steps"][0]["name"] == "Read tags"
 
 
 def test_audit_job_pilot_persists_workflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

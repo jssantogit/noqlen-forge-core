@@ -115,6 +115,18 @@ def test_core_api_dry_run_does_not_write(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert not marker.exists()
 
 
+def test_core_api_cleanup_returns_structured_result_without_printing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    track = __import__("noqlen_forge.audio", fromlist=["Track"]).Track(path=tmp_path / "song.mp3", format="mp3", tags={"bpm": ["300"]})
+    monkeypatch.setattr("noqlen_forge.services.library_maintenance_service.read_tracks", lambda path: [track])
+    monkeypatch.setattr("noqlen_forge.services.library_maintenance_service.apply_cleanup", lambda plans, apply: None)
+
+    result = NoqlenForgeCore(config={}).cleanup(tmp_path / "Album")
+
+    assert result.status == Status.DRY
+    assert result.planned_changes
+    assert capsys.readouterr().out == ""
+
+
 def test_core_api_apply_respects_automated_safety(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr("noqlen_forge.services.lyrics_service.lyrics_path", lambda *args, **kwargs: (0, "Lyrics\nStatus: OK"))
 

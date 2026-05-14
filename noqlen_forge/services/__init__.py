@@ -4,6 +4,7 @@ from .audit_service import AuditOptions, run_audit_service
 from .cli_helpers import build_operation_context, build_safety_context, exit_code_from_status, handle_cli_error, load_cli_config, parse_fields, parse_output_format, parse_provider_list, render_service_result, render_structured_service_result, render_workflow_result
 from .core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
 from .library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
+from .library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
 from .lyrics_service import LyricsOptions, run_lyrics_service
 from .maintenance_service import RepairOptions, RewriteOptions, SyncOptions, run_repair_service, run_rewrite_service, run_sync_service
 from .metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
@@ -14,7 +15,9 @@ from .types import sanitize_result_for_json, sanitize_value_for_output, workflow
 __all__ = [
     "AuditOptions",
     "ApplyMBIDOptions",
+    "BatchOptions",
     "CandidatesOptions",
+    "CleanupOptions",
     "CoverOptions",
     "DuplicatesOptions",
     "ExportOptions",
@@ -49,6 +52,8 @@ __all__ = [
     "render_structured_service_result",
     "render_workflow_result",
     "run_cover_service",
+    "run_batch_service",
+    "run_cleanup_service",
     "run_duplicates_service",
     "run_export_service",
     "run_import_service",

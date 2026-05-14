@@ -20,6 +20,7 @@ class BatchResult:
     items: list[BatchItem] = field(default_factory=list)
     stopped: bool = False
     cancelled: bool = False
+    targets: list[Path] = field(default_factory=list)
 
 
 def batch_targets(path: Path, recursive: bool = False) -> list[Path]:
@@ -43,14 +44,20 @@ def batch_targets(path: Path, recursive: bool = False) -> list[Path]:
 
 
 def run_batch(path: Path, process: Callable[[Path, bool], int], apply: bool = False, recursive: bool = False, yes: bool = False, continue_on_review: bool = False) -> tuple[int, str]:
+    result = run_batch_result(path, process=process, apply=apply, recursive=recursive, yes=yes, continue_on_review=continue_on_review)
+    if not result.targets:
+        return 1, "No batch targets found"
+    final_code = 1 if result.cancelled or any(item.status in {"FAILED", "REVIEW"} for item in result.items) else 0
+    return final_code, render_batch_summary(result, result.targets)
+
+
+def run_batch_result(path: Path, process: Callable[[Path, bool], int], apply: bool = False, recursive: bool = False, yes: bool = False, continue_on_review: bool = False) -> BatchResult:
     targets = batch_targets(path, recursive=recursive)
     if not targets:
-        return 1, "No batch targets found"
+        return BatchResult(targets=[])
     if recursive and apply and len(targets) > 20 and not yes:
-        answer = input(f"Apply batch to {len(targets)} targets? [y/N] ").strip().lower()
-        if answer not in {"y", "yes", "s", "sim"}:
-            return 1, render_batch_summary(BatchResult(cancelled=True), targets)
-    result = BatchResult()
+        return BatchResult(cancelled=True, targets=targets)
+    result = BatchResult(targets=targets)
     for target in targets:
         code = process(target, apply)
         status = "FAILED"
@@ -61,8 +68,7 @@ def run_batch(path: Path, process: Callable[[Path, bool], int], apply: bool = Fa
         if status == "REVIEW" and not continue_on_review:
             result.stopped = True
             break
-    final_code = 1 if result.cancelled or any(item.status in {"FAILED", "REVIEW"} for item in result.items) else 0
-    return final_code, render_batch_summary(result, targets)
+    return result
 
 
 def render_batch_summary(result: BatchResult, targets: list[Path]) -> str:

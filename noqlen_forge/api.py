@@ -20,6 +20,8 @@ from .services import (
     CandidatesOptions,
     CoverOptions,
     ImportOptions,
+    BatchOptions,
+    CleanupOptions,
     LyricsOptions,
     MetadataOptions,
     OrganizeOptions,
@@ -36,6 +38,8 @@ from .services import (
     run_cover_service,
     run_export_service,
     run_import_service,
+    run_batch_service,
+    run_cleanup_service,
     run_lyrics_service,
     run_metadata_service,
     run_organize_service,
@@ -46,6 +50,7 @@ from .services import (
     run_rewrite_service,
     run_sync_service,
 )
+from .services.job_service import JobsOptions, run_jobs_service
 from .workflow import SafetyContext, Status, StepResult, WorkflowResult
 
 
@@ -85,6 +90,8 @@ _WORKFLOWS: dict[str, dict[str, Any]] = {
     "replaygain": {"apply": True, "jobs": True, "implemented": True},
     "import_music": {"apply": True, "jobs": True, "implemented": True, "dangerous": True},
     "organize": {"apply": True, "jobs": True, "implemented": True, "dangerous": True},
+    "cleanup": {"apply": True, "jobs": True, "implemented": True},
+    "batch": {"apply": True, "jobs": True, "implemented": True},
     "sync": {"apply": True, "jobs": True, "implemented": True},
     "review": {"apply": True, "jobs": False, "implemented": True},
     "rewrite": {"apply": True, "jobs": True, "implemented": True},
@@ -167,6 +174,14 @@ class NoqlenForgeCore:
         target = _path(path)
         return self._run("organize", target, options, lambda opts: run_organize_service(_option(OrganizeOptions, path=target, config=self.config, **opts)))
 
+    def cleanup(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._run("cleanup", target, options, lambda opts: run_cleanup_service(_option(CleanupOptions, path=target, config=self.config, **opts)))
+
+    def batch(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._run("batch", target, options, lambda opts: run_batch_service(_option(BatchOptions, path=target, config=self.config, **opts)))
+
     def sync(self, path: str | Path, **options: Any) -> WorkflowResult:
         target = _path(path)
         return self._run("sync", target, options, lambda opts: run_sync_service(_option(SyncOptions, path=target, config=self.config, **opts)))
@@ -243,11 +258,19 @@ class NoqlenForgeCore:
         return self._simple_result("jobs.cancel", status, summary={"job_id": job_id, "canceled": canceled}, errors=[] if canceled else [f"Job not found: {job_id}"], job={"job_id": job_id})
 
     def jobs_list(self, **options: Any) -> WorkflowResult:
-        jobs = self._job_store().list_jobs(status=options.get("status"), limit=int(options.get("limit", 20)))
-        return self._simple_result("jobs.list", Status.OK, summary={"count": len(jobs)}, counts={"jobs": len(jobs)}, details={"jobs": jobs})
+        return self._call_silently("jobs.list", None, lambda: run_jobs_service(_option(JobsOptions, config=self.config, command="list", **options)))
 
     def jobs_status(self, job_id: str, **options: Any) -> WorkflowResult:
-        return self.get_job(job_id, **options)
+        return self._call_silently("jobs.status", None, lambda: run_jobs_service(_option(JobsOptions, config=self.config, command="status", job_id=job_id, **options)))
+
+    def jobs_show(self, job_id: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("jobs.show", None, lambda: run_jobs_service(_option(JobsOptions, config=self.config, command="show", job_id=job_id, **options)))
+
+    def jobs_resume(self, job_id: str, **options: Any) -> WorkflowResult:
+        return self._call_silently("jobs.resume", None, lambda: run_jobs_service(_option(JobsOptions, config=self.config, command="resume", job_id=job_id, **options)))
+
+    def jobs_prune(self, **options: Any) -> WorkflowResult:
+        return self._call_silently("jobs.prune", None, lambda: run_jobs_service(_option(JobsOptions, config=self.config, command="prune", **options)))
 
     def _run(self, workflow: str, target: Path | None, options: dict[str, Any], runner: Callable[[dict[str, Any]], WorkflowResult]) -> WorkflowResult:
         call_options = dict(options)

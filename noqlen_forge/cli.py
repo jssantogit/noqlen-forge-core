@@ -11,7 +11,7 @@ from typing import Callable, Iterator
 from .analyze import analyze_bpm_path, analyze_features_path, analyze_key_path
 from .audit import audit_path, render_audit, render_final_audit
 from .audio import audio_files, get_tag, mb_album_ids, read_tracks, target_kind
-from .batch import run_batch
+from .batch import batch_targets
 from .cleanup import apply_cleanup, plan_cleanup, summarize_cleanup
 from .config import config_path, get_config_value, load_config, masked_config, render_config, save_default_config
 from .cover import CoverResult, cover_path, process_cover
@@ -42,6 +42,8 @@ from .services.audit_service import AuditOptions, audit_result_from_workflow, ru
 from .services.cli_helpers import load_cli_config, parse_fields, render_service_result, render_structured_service_result
 from .services.core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
 from .services.library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
+from .services.library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
+from .services.job_service import JobsOptions, run_jobs_service
 from .services.lyrics_service import LyricsOptions, render_lyrics_service_result, run_lyrics_service
 from .services.maintenance_service import RepairOptions, RewriteOptions, SyncOptions, run_repair_service, run_rewrite_service, run_sync_service
 from .services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
@@ -1663,42 +1665,30 @@ def missing_files_command(args: argparse.Namespace, config: dict | None = None, 
 
 def jobs_command(args: argparse.Namespace, config: dict | None = None) -> int:
     active_config = config or load_config()
-    store = JobStore(active_config)
     command = args.jobs_command
     output_format = getattr(args, "format", "text")
+    result = run_jobs_service(JobsOptions(active_config, command, job_id=getattr(args, "job_id", ""), status=getattr(args, "status", None), limit=getattr(args, "limit", 20), apply=bool(getattr(args, "apply", False)), verbose=bool(getattr(args, "verbose", False))))
+    payload = result.details
     if command == "list":
-        jobs = store.list_jobs(status=getattr(args, "status", None), limit=getattr(args, "limit", 20))
-        payload = {"jobs": jobs, "count": len(jobs)}
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) if output_format == "json" else _render_jobs_list(jobs))
-        return 0
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) if output_format == "json" else _render_jobs_list(payload.get("jobs", [])))
+        return 0 if result.status == Status.OK else 1
     if command in {"status", "show"}:
-        result = store.get_result(args.job_id)
-        if result is None:
+        if result.status == Status.FAIL:
             print(f"Job not found: {args.job_id}")
             return 1
-        payload = {"job": result.job, "steps": result.steps, "events": result.events if command == "show" or getattr(args, "verbose", False) else []}
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) if output_format == "json" else _render_job_status(payload, verbose=command == "show" or getattr(args, "verbose", False)))
         return 0
     if command == "cancel":
-        try:
-            ok = store.cancel(args.job_id)
-        except ValueError as exc:
-            print(str(exc))
+        if result.status == Status.FAIL:
+            print(result.errors[0] if result.errors else f"Job not found: {args.job_id}")
             return 1
-        if not ok:
-            print(f"Job not found: {args.job_id}")
-            return 1
-        payload = {"job_id": args.job_id, "status": JobStatus.CANCELED.value}
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True) if output_format == "json" else f"Job {args.job_id} canceled")
         return 0
     if command == "resume":
-        code, message = resume_job(active_config, args.job_id)
-        payload = {"job_id": args.job_id, "status": "resumed" if code == 0 else "failed", "message": message}
-        print(json.dumps(payload, ensure_ascii=False, sort_keys=True) if output_format == "json" else message)
-        return code
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True) if output_format == "json" else str(payload.get("message", "")))
+        return 0 if result.status == Status.OK else 1
     if command == "prune":
-        result = store.prune(apply=bool(getattr(args, "apply", False)))
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) if output_format == "json" else _render_jobs_prune(result))
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) if output_format == "json" else _render_jobs_prune(payload))
         return 0
     print(f"Unknown jobs command: {command}")
     return 1
@@ -1797,21 +1787,25 @@ def apply_mbid(path: Path, release_id: str | None, apply: bool, force: bool = Fa
 
 
 def cleanup_metadata(path: Path, apply: bool, verbose: bool = False) -> int:
-    tracks = read_tracks(path)
-    if not tracks:
-        print("No supported audio files found")
-        return 1
-    plans = plan_cleanup(tracks)
-    apply_cleanup(plans, apply=apply)
-    print(summarize_cleanup(plans, apply=apply, verbose=verbose))
-    return 0
+    result = run_cleanup_service(CleanupOptions(path=path, apply=apply, verbose=verbose))
+    code, output = render_service_result(result)
+    print(output)
+    return code
 
 
 def batch_command(path: Path, apply: bool, recursive: bool = False, yes: bool = False, continue_on_review: bool = False) -> int:
+    if recursive and apply and not yes:
+        targets = batch_targets(path, recursive=recursive)
+        if len(targets) > 20:
+            answer = input(f"Apply batch to {len(targets)} targets? [y/N] ").strip().lower()
+            if answer in {"y", "yes", "s", "sim"}:
+                yes = True
+
     def process(target: Path, target_apply: bool) -> int:
         return enrich(target, apply=target_apply, force=False)
 
-    code, output = run_batch(path, process=process, apply=apply, recursive=recursive, yes=yes, continue_on_review=continue_on_review)
+    result = run_batch_service(BatchOptions(path=path, apply=apply, recursive=recursive, yes=yes, continue_on_review=continue_on_review, process=process))
+    code, output = render_service_result(result)
     print(output)
     return code
 
