@@ -17,6 +17,8 @@ for step in result.steps:
 
 Every public workflow method returns `WorkflowResult`. Use `workflow_result_to_dict()` or `workflow_result_to_json()` from `noqlen_forge.services.types` for machine-readable output.
 
+Metadata/review-oriented workflows currently exposed through stable service adapters include `metadata()`, `candidates()`, `apply_mbid()`, and `review()`. `apply_mbid(..., apply=True)` requires explicit options for medium-confidence matches in non-terminal callers; interactive confirmation remains a CLI-only compatibility path.
+
 ## Services And CLI
 
 Services own reusable workflow behavior and safety decisions. CLI handlers parse arguments, call services, render human output, and return process exit codes. The Core API sits beside the CLI and adapts stable services into silent structured results for clients such as a future local API or Android bridge.

@@ -26,7 +26,7 @@ from .lyrics_providers import render_provider_list
 from .importer import import_path
 from .jobs import JobOptions, JobStore, JobStatus, resume_job, run_workflow_as_job
 from .lab import lab_command
-from .metadata_providers import acoustid_plans_from_candidate, build_context, fetch_metadata_with_providers, merge_ambiguous_discogs_common_fields, merge_candidate, metadata_path, metadata_status, plans_from_decisions, render_metadata_output, resolve_metadata_providers
+from .metadata_providers import acoustid_plans_from_candidate, build_context, fetch_metadata_with_providers, merge_ambiguous_discogs_common_fields, merge_candidate, metadata_status, plans_from_decisions, render_metadata_output, resolve_metadata_providers
 from .mood import analyze_mood_path
 from .musicbrainz import get_release, hydrate_releases, search_releases
 from .navidrome import navidrome_ping, playlists_backup as navidrome_playlists_backup, playlists_diff as navidrome_playlists_diff, playlists_export as navidrome_playlists_export, playlists_list as navidrome_playlists_list, playlists_push as navidrome_playlists_push, playlists_push_smart as navidrome_playlists_push_smart, playlists_status as navidrome_playlists_status, ratings_backup as navidrome_ratings_backup, ratings_diff as navidrome_ratings_diff, ratings_export as navidrome_ratings_export, ratings_restore as navidrome_ratings_restore, ratings_status as navidrome_ratings_status
@@ -34,7 +34,6 @@ from .organize import organize_path
 from .reports import missing_files_report, missing_report, untracked_report
 from .repair import repair_path
 from .replaygain import replaygain_path
-from .review import review_command as run_review_command
 from .rewrite import rewrite_path
 from .safety import SafetyError, automated_validation_enabled, require_lab_path_for_automated_apply
 from .scoring import rank_releases, score_release
@@ -45,6 +44,7 @@ from .services.core_service import CoverOptions, ReplayGainOptions, run_cover_se
 from .services.library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
 from .services.lyrics_service import LyricsOptions, render_lyrics_service_result, run_lyrics_service
 from .services.maintenance_service import RepairOptions, RewriteOptions, SyncOptions, run_repair_service, run_rewrite_service, run_sync_service
+from .services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
 from .services.playlist_service import PlaylistExportOptions, render_playlist_export_result, run_playlist_export_service
 from .services.report_service import QueryOptions, build_duplicates_options, build_export_options, build_missing_files_options, build_missing_options, build_untracked_options, missing_report_title, render_report_result, report_scope_label, run_duplicates_service, run_export_service, run_missing_files_service, run_missing_service, run_query_service, run_untracked_service
 from .services.types import workflow_result_to_json
@@ -1251,7 +1251,8 @@ def main(argv: list[str] | None = None) -> int:
         print(output)
         return code
     if args.command == "metadata":
-        code, output = metadata_path(args.path, apply=args.apply, force=args.force, providers=args.provider, min_confidence=args.min_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")), verbose=args.verbose or bool(get_config_value(config, "output", "verbose", False)), debug=args.debug or bool(get_config_value(config, "output", "debug", False)), config=config, allow_more_providers=args.allow_more_providers, discogs_release_id=args.discogs_release_id or "", candidate_index=args.candidate, itunes_storefront=args.itunes_storefront or "")
+        result = run_metadata_service(MetadataOptions(args.path, config=config, apply=args.apply, force=args.force, providers=args.provider, min_confidence=args.min_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")), verbose=args.verbose or bool(get_config_value(config, "output", "verbose", False)), debug=args.debug or bool(get_config_value(config, "output", "debug", False)), allow_more_providers=args.allow_more_providers, discogs_release_id=args.discogs_release_id or "", candidate_index=args.candidate, itunes_storefront=args.itunes_storefront or ""))
+        code, output = render_service_result(result)
         print(output)
         return code
     if args.command == "batch":
@@ -1550,7 +1551,8 @@ def fields_command(args: argparse.Namespace) -> int:
 
 def review_command(args: argparse.Namespace, config: dict | None = None) -> int:
     active_config = config or load_config()
-    code, output = run_review_command(active_config, list(args.review_args or []), output_format=args.format, verbose=args.verbose, action=args.action, value=args.value, field=args.field, apply=args.apply, force=args.force)
+    result = run_review_service(ReviewOptions(active_config, list(args.review_args or []), output_format=args.format, verbose=args.verbose, action=args.action, value=args.value, field=args.field, apply=args.apply, force=args.force))
+    code, output = render_service_result(result)
     print(output)
     return code
 
@@ -1772,60 +1774,26 @@ def _lyrics_sources_from_args(args: argparse.Namespace, config: dict) -> list[st
 
 
 def candidates(path: Path) -> int:
-    tracks = read_tracks(path)
-    if not tracks:
-        print("No supported audio files found")
-        return 1
-    releases = hydrate_releases(search_releases(tracks))
-    ranked = rank_releases(tracks, releases)
-    for item in ranked:
-        release = item.release
-        print(f"{item.score:3d} {release.get('id')} {release.get('title')} {release.get('date', '')} {release.get('country', '')}")
-        print("    " + "; ".join(item.reasons))
-    if not ranked:
-        print("No matching release candidates were found. Try --release-id UUID or check artist/album/title tags.")
-        return 1
-    return 0
+    result = run_candidates_service(CandidatesOptions(path))
+    code, output = render_service_result(result)
+    print(output)
+    return code
 
 
 def apply_mbid(path: Path, release_id: str | None, apply: bool, force: bool = False) -> int:
-    tracks = read_tracks(path)
-    if not tracks:
-        print("No supported audio files found")
-        return 1
-    existing = mb_album_ids(tracks)
-    if existing and not force:
-        print(f"Existing MusicBrainz Album Id found on all/some tracks: {', '.join(sorted(existing))}")
-        print("Not overwriting without --force")
-        return 0
-    if release_id:
-        release = get_release(release_id)
-        scored = score_release(tracks, release)
-    else:
-        ranked = rank_releases(tracks, hydrate_releases(search_releases(tracks)))
-        if not ranked:
-            print("No matching release candidates were found. Try --release-id UUID or check artist/album/title tags.")
-            return 1
-        scored = ranked[0]
-        release = scored.release
-    print(f"Selected score={scored.score} release={release.get('id')} title={release.get('title')}")
-    if scored.score < 80 and not release_id:
-        print("Score below 80; review required before applying MusicBrainz IDs.")
-        return 1
-    if 80 <= scored.score < 95 and apply and not release_id:
+    result = run_apply_mbid_service(ApplyMBIDOptions(path, release_id=release_id, apply=apply, force=force))
+    if result.summary.get("requires_confirmation"):
+        output = str(result.details.get("output_text", ""))
+        if output:
+            print(output)
         answer = input("Apply medium-confidence MusicBrainz match? [y/N] ").strip().lower()
         if answer not in {"y", "yes", "s", "sim"}:
             print("Cancelled")
             return 1
-    plans = plan_musicbrainz_writes(tracks, release, force=force)
-    errors = apply_musicbrainz_writes(plans, apply=apply)
-    if errors:
-        print("MusicBrainz write verification failed:")
-        for error in errors:
-            print(f"- {error}")
-        return 1
-    print(summarize_plans(plans, apply=apply))
-    return 0
+        result = run_apply_mbid_service(ApplyMBIDOptions(path, release_id=release_id, apply=apply, force=force, confirm_medium_confidence=True))
+    code, output = render_service_result(result)
+    print(output)
+    return code
 
 
 def cleanup_metadata(path: Path, apply: bool, verbose: bool = False) -> int:

@@ -13,6 +13,7 @@ from noqlen_forge.services.library_service import OrganizeOptions, run_organize_
 from noqlen_forge.services.maintenance_service import SyncOptions, run_sync_service
 from noqlen_forge.services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from noqlen_forge.services.lyrics_service import LyricsOptions, run_lyrics_service
+from noqlen_forge.services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
 from noqlen_forge.services.playlist_service import PlaylistExportOptions, render_playlist_export_result, run_playlist_export_service
 from noqlen_forge.services.report_service import ExportOptions, QueryOptions, build_duplicates_options, build_export_options, build_missing_options, render_report_result, run_export_service, run_query_service
 from noqlen_forge.services.result_helpers import finish_object_result, finish_text_result, first_line, status_from_text_output
@@ -20,6 +21,8 @@ from noqlen_forge.services.types import sanitize_value_for_output, workflow_resu
 from noqlen_forge.smart_playlists import smart_create, smart_export
 from noqlen_forge.workflow import AppliedChange, Artifact, PlannedChange, Status, StepResult, WorkflowResult
 from test_export import _config, _seed
+from test_metadata_providers import tracks
+from test_review import _seed as _seed_review
 
 
 def test_service_options_are_argparse_free() -> None:
@@ -379,3 +382,84 @@ def test_services_do_not_print_stdout(monkeypatch: pytest.MonkeyPatch, tmp_path:
     run_cover_service(CoverOptions(path=tmp_path, config={}))
 
     assert capsys.readouterr().out == ""
+
+
+def test_metadata_service_returns_structured_provider_result(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from noqlen_forge.metadata_providers import MetadataCandidate, ProviderAttempt, ProviderSelection
+
+    candidate = MetadataCandidate(provider="discogs", source_id="release-1", confidence="high", score=91, genre="Rock", style="Progressive Metal")
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.read_tracks", lambda path: tracks(tags={}))
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.resolve_metadata_providers", lambda *args, **kwargs: ProviderSelection(["discogs"], [], {"discogs": "catalog"}))
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.fetch_metadata_with_providers", lambda *args, **kwargs: [ProviderAttempt("discogs", "OK", "matched", [candidate])])
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.apply_musicbrainz_writes", lambda plans, apply: [])
+
+    result = run_metadata_service(MetadataOptions(tmp_path / "Album", config={}, providers=["discogs"]))
+
+    assert result.status == Status.OK
+    assert result.details["providers"][0]["candidates"][0]["source_id"] == "release-1"
+    assert result.details["decisions"]
+    assert "output_text" not in result.safe_details
+
+
+def test_candidates_service_returns_structured_candidates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class Ranked:
+        score = 97
+        release = {"id": "rel-1", "title": "Album", "date": "2024", "country": "US"}
+        reasons = ["artist match"]
+
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.read_tracks", lambda path: tracks())
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.search_releases", lambda items: [{"id": "rel-1"}])
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.hydrate_releases", lambda releases: releases)
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.rank_releases", lambda items, releases: [Ranked()])
+
+    result = run_candidates_service(CandidatesOptions(tmp_path / "Album"))
+
+    assert result.status == Status.OK
+    assert result.details["candidates"][0]["release_id"] == "rel-1"
+
+
+def test_apply_mbid_service_requires_explicit_medium_apply_confirmation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class Ranked:
+        score = 90
+        release = {"id": "rel-1", "title": "Album"}
+        reasons = ["artist match"]
+
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.read_tracks", lambda path: tracks(tags={}))
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.mb_album_ids", lambda items: set())
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.search_releases", lambda items: [{"id": "rel-1"}])
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.hydrate_releases", lambda releases: releases)
+    monkeypatch.setattr("noqlen_forge.services.metadata_service.rank_releases", lambda items, releases: [Ranked()])
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("service called input")))
+
+    result = run_apply_mbid_service(ApplyMBIDOptions(tmp_path / "Album", apply=True))
+
+    assert result.status == Status.REVIEW
+    assert result.summary["requires_confirmation"] is True
+
+
+def test_apply_mbid_cli_keeps_confirmation_at_terminal_layer(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    calls = {"confirmed": False}
+
+    def fake_service(options: ApplyMBIDOptions) -> WorkflowResult:
+        if not options.confirm_medium_confidence:
+            return WorkflowResult(Status.REVIEW, [StepResult(1, 1, "Plan", Status.REVIEW)], command="apply-mbid", summary={"requires_confirmation": True}, details={"exit_code": 1, "output_text": "Selected score=90 release=rel-1 title=Album"})
+        calls["confirmed"] = True
+        return WorkflowResult(Status.APPLY, [StepResult(1, 1, "Plan", Status.APPLY)], command="apply-mbid", details={"exit_code": 0, "output_text": "APPLY: 1 files"})
+
+    monkeypatch.setattr(cli, "run_apply_mbid_service", fake_service)
+    monkeypatch.setattr("builtins.input", lambda _: "y")
+
+    assert cli.apply_mbid(tmp_path / "Album", release_id=None, apply=True) == 0
+    assert calls["confirmed"] is True
+    assert "APPLY: 1 files" in capsys.readouterr().out
+
+
+def test_review_service_wraps_legacy_review_result(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    _seed_review(config, tmp_path / "song.flac")
+
+    result = run_review_service(ReviewOptions(config, []))
+
+    assert result.status == Status.REVIEW
+    assert result.details["exit_code"] == 1
+    assert "Pending decisions: 1" in result.details["output_text"]

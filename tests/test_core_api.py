@@ -50,6 +50,32 @@ def test_core_api_audit_returns_workflow_result(monkeypatch: pytest.MonkeyPatch)
     assert isinstance(result, WorkflowResult)
 
 
+def test_core_api_metadata_uses_service_without_printing(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    expected = WorkflowResult(Status.OK, [StepResult(1, 1, "Metadata", Status.OK)], command="metadata", details={"providers": []})
+    called = {"path": None}
+
+    def fake_service(options):
+        print("metadata noise")
+        called["path"] = options.path
+        return expected
+
+    monkeypatch.setattr("noqlen_forge.api.run_metadata_service", fake_service)
+
+    result = NoqlenForgeCore(config={}).metadata("Album")
+
+    assert result is expected
+    assert called["path"] == Path("Album")
+    assert capsys.readouterr().out == ""
+
+
+def test_core_api_review_is_structured_service(monkeypatch: pytest.MonkeyPatch) -> None:
+    expected = WorkflowResult(Status.OK, [StepResult(1, 1, "Review", Status.OK)], command="review")
+
+    monkeypatch.setattr("noqlen_forge.api.run_review_service", lambda options: expected)
+
+    assert NoqlenForgeCore(config={}).review(review_args=["list"]) is expected
+
+
 def test_core_api_not_implemented_returns_structured_error() -> None:
     result = NoqlenForgeCore(config={}).enrich("Album", full=True)
 

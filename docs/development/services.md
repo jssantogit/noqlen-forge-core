@@ -62,4 +62,6 @@ Use existing DB helpers for lookups, upserts, operation recording, and migration
 
 New providers should follow the closest existing provider contract, return structured candidates/results with confidence and match reasons, and keep network calls mockable. Tests and MusicLab must use fake/mock providers or clients rather than real external services.
 
+Metadata provider services should expose curated candidate and decision summaries only. Do not copy raw provider payloads, full fingerprints, secrets, or full lyrics into `details` or `safe_details`.
+
 See [App-readiness boundary audit](app-readiness.md) for current migration priorities and controller-readiness gaps.

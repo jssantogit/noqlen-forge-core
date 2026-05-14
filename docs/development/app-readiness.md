@@ -56,9 +56,9 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 | `import` | Yes | Yes | Partial | Medium | Partial | Replace text-output wrapping with structured plan, stage, artifact, and apply details. |
 | `organize` | Yes | Yes | Partial | Medium | Partial | Promote organize plans and applied file operations into `ChangePlan`/`Artifact` fields. |
 | `query`, `report`, `export` | Yes | Partial | Partial | Medium | Partial | Add Core API methods for query/report variants and reduce reliance on `output_text`. |
-| `review` | No | Partial | Partial | High | Not ready | Define a non-interactive service contract for list/show/resolve with explicit decisions and flags. |
+| `review` | Yes | Yes | Partial | Medium | Partial | Continue replacing wrapped review text with structured decision lists, plans, and applied changes. |
 | `maintain sync/repair/rewrite` | Yes | Yes | Partial | Medium | Partial | Convert wrapped text results into structured plans, conflicts, warnings, and applied changes. |
-| `metadata`, `candidates`, `apply-mbid` | No | No | Partial | High | Not ready | Split provider lookup, candidate selection, and write planning into services before Core API exposure. |
+| `metadata`, `candidates`, `apply-mbid` | Yes | Yes | Partial | Medium | Partial | Expand structured provider decisions and write plans while keeping raw provider payloads out of results. |
 | `cover` | Yes | Yes | Partial | Medium | Partial | Move cover decisions, selected source, confidence, and output files into structured fields. |
 | `lyrics` | Yes | Yes | Partial | Medium | Partial | Keep full lyrics out of results; expose safe provider decisions, artifacts, and redacted summaries. |
 | `replaygain` and audio analysis | Partial | Partial | Partial | Medium | Partial | Add services for BPM, key, mood, and feature analysis; reduce direct CLI calls to analysis modules. |
@@ -70,10 +70,10 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 ## App-Readiness Blockers
 
 - `cli.py` still owns extensive direct `print()` rendering, progress lines, and command branching. This is acceptable for the CLI but should not leak into future controllers.
-- `apply-mbid` still contains an `input()` confirmation path for a medium-confidence match. Future non-terminal control needs explicit flags/options rather than interactive confirmation.
+- `apply-mbid` keeps medium-confidence `input()` confirmation in the CLI adapter only; service and Core API callers must pass an explicit confirmation option for apply-like behavior.
 - Several service adapters call legacy functions that return `(code, output)` or result objects with text output, then store `output_text` in `WorkflowResult.details`.
 - Some workflows are service-backed but not fully structured: they expose status and summary, but planned changes, applied changes, artifacts, provider decisions, or conflicts remain embedded in text.
-- `NoqlenForgeCore` intentionally returns `NotImplementedWorkflowError` results for workflows without silent adapters, including `enrich`, `review`, and Navidrome rating workflows.
+- `NoqlenForgeCore` intentionally returns `NotImplementedWorkflowError` results for workflows without silent adapters, including `enrich` and Navidrome rating workflows.
 - Top-level CLI progress and stage rendering for enrich-style flows assumes terminal output. Future clients need event/progress data, not terminal lines.
 - Provider-heavy workflows need clearer fake-client and fake-provider boundaries before they are safe to expose to future controllers.
 - Some job operations are structured at the storage layer but still rendered directly by CLI handlers rather than consistently flowing through services.

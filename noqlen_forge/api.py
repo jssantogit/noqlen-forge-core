@@ -16,25 +16,33 @@ from .jobs import JobOptions, JobStore
 from .safety import AUTOMATED_VALIDATION_ENV, SafetyError
 from .services import (
     AuditOptions,
+    ApplyMBIDOptions,
+    CandidatesOptions,
     CoverOptions,
     ImportOptions,
     LyricsOptions,
+    MetadataOptions,
     OrganizeOptions,
     PlaylistExportOptions,
     RepairOptions,
     ReplayGainOptions,
+    ReviewOptions,
     RewriteOptions,
     SyncOptions,
     build_export_options,
     run_audit_service,
+    run_apply_mbid_service,
+    run_candidates_service,
     run_cover_service,
     run_export_service,
     run_import_service,
     run_lyrics_service,
+    run_metadata_service,
     run_organize_service,
     run_playlist_export_service,
     run_repair_service,
     run_replaygain_service,
+    run_review_service,
     run_rewrite_service,
     run_sync_service,
 )
@@ -71,11 +79,14 @@ _WORKFLOWS: dict[str, dict[str, Any]] = {
     "enrich": {"apply": True, "jobs": True, "implemented": False},
     "lyrics": {"apply": True, "jobs": True, "implemented": True},
     "cover": {"apply": True, "jobs": True, "implemented": True},
+    "metadata": {"apply": True, "jobs": True, "implemented": True},
+    "candidates": {"apply": False, "jobs": True, "implemented": True},
+    "apply_mbid": {"apply": True, "jobs": True, "implemented": True},
     "replaygain": {"apply": True, "jobs": True, "implemented": True},
     "import_music": {"apply": True, "jobs": True, "implemented": True, "dangerous": True},
     "organize": {"apply": True, "jobs": True, "implemented": True, "dangerous": True},
     "sync": {"apply": True, "jobs": True, "implemented": True},
-    "review": {"apply": True, "jobs": False, "implemented": False},
+    "review": {"apply": True, "jobs": False, "implemented": True},
     "rewrite": {"apply": True, "jobs": True, "implemented": True},
     "repair": {"apply": True, "jobs": True, "implemented": True},
     "export": {"apply": False, "jobs": True, "implemented": True},
@@ -132,6 +143,18 @@ class NoqlenForgeCore:
         target = _path(path)
         return self._run("cover", target, options, lambda opts: run_cover_service(_option(CoverOptions, path=target, config=self.config, **opts)))
 
+    def metadata(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._run("metadata", target, options, lambda opts: run_metadata_service(_option(MetadataOptions, path=target, config=self.config, **opts)))
+
+    def candidates(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._run("candidates", target, options, lambda opts: run_candidates_service(_option(CandidatesOptions, path=target, **opts)))
+
+    def apply_mbid(self, path: str | Path, **options: Any) -> WorkflowResult:
+        target = _path(path)
+        return self._run("apply_mbid", target, options, lambda opts: run_apply_mbid_service(_option(ApplyMBIDOptions, path=target, **opts)))
+
     def replaygain(self, path: str | Path, **options: Any) -> WorkflowResult:
         target = _path(path)
         return self._run("replaygain", target, options, lambda opts: run_replaygain_service(_option(ReplayGainOptions, path=target, config=self.config, **opts)))
@@ -150,7 +173,10 @@ class NoqlenForgeCore:
 
     def review(self, path: str | Path | None = None, **options: Any) -> WorkflowResult:
         target = _path(path) if path is not None else None
-        return self._not_implemented("review", target, "Review list/show/resolve needs an explicit Core API contract before execution.", options=options)
+        review_args = list(options.pop("review_args", []))
+        if target is not None and not review_args:
+            review_args = [str(target)]
+        return self._run("review", target, options, lambda opts: run_review_service(_option(ReviewOptions, config=self.config, review_args=review_args, **opts)))
 
     def rewrite(self, path: str | Path, **options: Any) -> WorkflowResult:
         target = _path(path)
