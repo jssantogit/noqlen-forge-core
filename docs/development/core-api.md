@@ -47,3 +47,5 @@ There is no background thread, daemon, or parallel executor. A future mobile bri
 `core.capabilities()` returns a manifest with workflow names, apply support, job support, implementation status, dangerous operations, and schema version. Future Noqlen Aria clients should read this manifest instead of hardcoding available workflows.
 
 Workflows without a silent service adapter return a structured `FAIL` result with `NotImplementedWorkflowError` until their service contract is stabilized.
+
+See [App-readiness boundary audit](app-readiness.md) for the current service, Core API, and terminal-coupling readiness matrix.

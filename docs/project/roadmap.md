@@ -28,6 +28,8 @@ Real-library operations should start with dry-run output and explicit review. Ap
 
 These names describe direction, not current implementation status. Noqlen Forge Core remains the current active public project.
 
+Developer-facing service and controller-readiness gaps are tracked in [App-readiness boundary audit](../development/app-readiness.md).
+
 ## Out Of Scope For Now
 
 - Full Noqlen Aria app development.
