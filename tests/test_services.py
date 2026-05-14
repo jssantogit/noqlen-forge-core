@@ -11,6 +11,7 @@ from noqlen_forge.navidrome import NavidromeConfig, RatingItem
 from noqlen_forge.safety import SafetyError
 from noqlen_forge.services.cli_helpers import exit_code_from_status, parse_fields, render_structured_service_result
 from noqlen_forge.services.core_service import CoverOptions, run_cover_service
+from noqlen_forge.services.enrich_service import EnrichOptions, run_enrich_service
 from noqlen_forge.services.library_service import OrganizeOptions, run_organize_service
 from noqlen_forge.services.library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
 from noqlen_forge.services.maintenance_service import SyncOptions, run_sync_service
@@ -129,6 +130,90 @@ def test_audit_cli_json_outputs_structured_workflow(monkeypatch: pytest.MonkeyPa
     assert payload["command"] == "audit"
     assert payload["summary"]["files"] == 1
     assert payload["steps"][0]["name"] == "Read tags"
+
+
+def test_enrich_service_dry_run_returns_structured_result(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    track = Track(path=tmp_path / "song.mp3", format="mp3", album="Album", artist="Artist", title="Song")
+    audit = AuditResult(tracks=[track], bad_fields=[])
+
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.target_kind", lambda path: "single")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.read_tracks", lambda path: [track])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.search_releases", lambda tracks: [])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.plan_cleanup", lambda tracks, release_date="": [])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.apply_cleanup", lambda plans, apply: None)
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.summarize_cleanup", lambda *args, **kwargs: "cleanup")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.audit_path", lambda path: audit)
+
+    result = run_enrich_service(EnrichOptions(path=tmp_path / "song.mp3", config={"enrich": {}}))
+
+    assert result.command == "enrich"
+    assert result.mode == "dry-run"
+    assert result.summary["stages"]["enabled"] == ["cleanup"]
+    assert [step.name for step in result.steps] == ["MusicBrainz", "Cleanup"]
+    assert result.details["targets"][0]["final_audit"]
+
+
+def test_enrich_service_apply_requires_explicit_confirmation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    track = Track(path=tmp_path / "song.mp3", format="mp3", album="Album", artist="Artist", title="Song")
+    scored = type("Scored", (), {"score": 90, "release": {"id": "release-1"}})()
+
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.target_kind", lambda path: "single")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.read_tracks", lambda path: [track])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.search_releases", lambda tracks: [{}])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.hydrate_releases", lambda releases: releases)
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.rank_releases", lambda tracks, releases: [scored])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.plan_cleanup", lambda tracks, release_date="": [])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.apply_cleanup", lambda plans, apply: None)
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.summarize_cleanup", lambda *args, **kwargs: "cleanup")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.audit_path", lambda path: AuditResult(tracks=[track], bad_fields=[]))
+
+    result = run_enrich_service(EnrichOptions(path=tmp_path / "song.mp3", config={}, apply=True))
+
+    assert result.steps[0].status == Status.REVIEW
+    assert "requires explicit confirmation" in result.steps[0].summary
+
+
+def test_enrich_cli_uses_service_renderer(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    expected = WorkflowResult(
+        Status.OK,
+        [StepResult(1, 1, "Cleanup", Status.OK, "removed 0 empty/bad fields")],
+        command="enrich",
+        details={"targets": [{"target_name": "", "album": "Album", "artist": "Artist", "files": 1, "mode": "DRY-RUN", "stages": [{"index": 1, "total": 1, "name": "Cleanup", "status": "OK", "summary": "removed 0 empty/bad fields", "detail": "", "optional": False}], "warnings": [], "final_audit": "Status: OK"}]},
+        safe_details={"targets": []},
+    )
+    called = {"service": False}
+
+    def fake_service(options: EnrichOptions) -> WorkflowResult:
+        called["service"] = True
+        return expected
+
+    monkeypatch.setattr(cli, "run_enrich_service", fake_service)
+
+    assert cli.main(["enrich", "song.mp3", "--plain"]) == 0
+
+    output = capsys.readouterr().out
+    assert called["service"] is True
+    assert "Album: Artist - Album" in output
+    assert "Cleanup" in output
+
+
+def test_enrich_service_serialized_result_redacts_sensitive_payloads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    track = Track(path=tmp_path / "song.mp3", format="mp3", album="Album", artist="Artist", title="Song")
+
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.target_kind", lambda path: "single")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.read_tracks", lambda path: [track])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.search_releases", lambda tracks: [])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.process_lyrics", lambda *args, **kwargs: type("Stats", (), {"total": 1, "embedded_existing": 0, "errors": [], "per_file": {track.path: "full lyrics should not leak"}, "synced_found": 1, "lyrics_after": 0, "tracks": [track]})())
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.plan_cleanup", lambda tracks, release_date="": [])
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.apply_cleanup", lambda plans, apply: None)
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.summarize_cleanup", lambda *args, **kwargs: "cleanup")
+    monkeypatch.setattr("noqlen_forge.services.enrich_service.audit_path", lambda path: AuditResult(tracks=[track], bad_fields=[]))
+
+    result = run_enrich_service(EnrichOptions(path=tmp_path / "song.mp3", config={"lyrics": {"enabled": True}}, lyrics=True))
+    text = workflow_result_to_json(result)
+
+    assert "full lyrics should not leak" not in text
+    assert "fingerprint" not in text.casefold()
 
 
 def test_playlist_export_service_returns_artifact(tmp_path: Path) -> None:

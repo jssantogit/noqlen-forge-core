@@ -41,6 +41,8 @@ from .smart_playlists import smart_create, smart_delete, smart_export, smart_lis
 from .services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from .services.cli_helpers import load_cli_config, parse_fields, render_service_result, render_structured_service_result
 from .services.core_service import CoverOptions, ReplayGainOptions, run_cover_service, run_replaygain_service
+from .services import enrich_service as enrich_service_module
+from .services.enrich_service import EnrichOptions, run_enrich_service
 from .services.library_service import ImportOptions, OrganizeOptions, run_import_service, run_organize_service
 from .services.library_maintenance_service import BatchOptions, CleanupOptions, run_batch_service, run_cleanup_service
 from .services.job_service import JobsOptions, run_jobs_service
@@ -1923,277 +1925,141 @@ def enrich(
     config: dict | None = None,
     explicit_flags: set[str] | None = None,
 ) -> int:
-    verbose_output = verbose or debug
-    config_provided = config is not None
-    config = config or load_config()
-    if not config_provided and not config_path().exists():
-        config = {**config, "enrich": {**config.get("enrich", {}), "full_includes_key": True}}
-    options = resolve_enrich_options(
-        config,
-        full=full,
-        analyze_bpm=analyze_bpm,
-        analyze_key=analyze_key,
-        analyze_features=analyze_features,
-        with_lastfm=with_lastfm,
-        with_mood=with_mood,
-        acoustid_identify=acoustid_identify,
-        skip_acoustid_identify=skip_acoustid_identify,
-        skip_bpm=skip_bpm,
-        skip_key=skip_key,
-        skip_features=skip_features,
-        skip_lastfm=skip_lastfm,
-        skip_mood=skip_mood,
-        cover=cover,
-        skip_cover=skip_cover,
-        lyrics=lyrics,
-        skip_lyrics=skip_lyrics,
-        metadata_providers=metadata_providers,
-        skip_metadata_providers=skip_metadata_providers,
-        replaygain=replaygain,
-        skip_replaygain=skip_replaygain,
-        explicit_flags=explicit_flags or set(),
-    )
     progress = _Progress(no_progress=no_progress, no_spinner=no_spinner, plain=plain)
-    kind = target_kind(path)
-    if kind == "empty":
-        print("No supported audio files found")
-        return 1
-    targets = _enrichment_targets(path, kind)
-    if not targets:
-        print("No album/file targets found")
-        return 1
-    for target in targets:
-        tracks = read_tracks(target)
-        stage_total = 2 + sum(
-            1
-            for enabled in (
-                options["run_metadata_providers"],
-                options["run_acoustid_identify"],
-                options["run_bpm"],
-                options["run_features"],
-                options["run_replaygain"],
-                options["run_lastfm"],
-                options["run_mood"],
-                options["run_cover"],
-                options["run_lyrics"],
-                options["run_key"] and (options["run_cover"] or options["run_lyrics"]),
-            )
-            if enabled
+    active_contexts: dict[tuple[int, str], object] = {}
+    rendered_events = False
+
+    def on_event(event: dict) -> None:
+        nonlocal rendered_events
+        if event["event"] == "target_start":
+            rendered_events = True
+            target = event.get("target") or {}
+            target_name = target.get("target_name") or ""
+            if target_name:
+                print(f"Target: {target_name}")
+            album = target.get("album") or "unknown"
+            artist = target.get("artist") or "unknown"
+            if album != "unknown" or artist != "unknown":
+                print(f"Album: {artist} - {album}" if artist != "unknown" else f"Album: {album}")
+            print(f"Files: {target.get('files', 0)}")
+            print(f"Mode: {target.get('mode', 'DRY-RUN')}")
+            print("")
+            return
+        if event["event"] == "stage_start":
+            prefix = "[optional]" if event.get("optional") else f"[{event['index']}/{event['total']}]"
+            context = progress.spinner(prefix, str(event["name"]))
+            active_contexts[(int(event["index"]), str(event["name"]))] = context
+            context.__enter__()
+            return
+        context = active_contexts.pop((int(event["index"]), str(event["name"])), None)
+        if context is not None:
+            context.__exit__(None, None, None)
+        if event.get("optional"):
+            _print_optional_done(str(event["name"]), str(event["status"]), str(event.get("summary") or ""))
+        else:
+            _print_stage_done(int(event["index"]), int(event["total"]), str(event["name"]), str(event["status"]), str(event.get("summary") or ""))
+        _print_verbose(str(event.get("detail") or ""), bool(event.get("detail")))
+
+    _sync_enrich_service_dependencies()
+    result = run_enrich_service(
+        EnrichOptions(
+            path=path,
+            config=config,
+            apply=apply,
+            force=force,
+            acoustid_identify=acoustid_identify,
+            skip_acoustid_identify=skip_acoustid_identify,
+            analyze_bpm=analyze_bpm,
+            analyze_key=analyze_key,
+            analyze_features=analyze_features,
+            full=full,
+            skip_bpm=skip_bpm,
+            skip_key=skip_key,
+            skip_features=skip_features,
+            force_bpm=force_bpm,
+            force_key=force_key,
+            force_features=force_features,
+            with_lastfm=with_lastfm,
+            with_mood=with_mood,
+            skip_lastfm=skip_lastfm,
+            skip_mood=skip_mood,
+            cover=cover,
+            skip_cover=skip_cover,
+            lyrics=lyrics,
+            skip_lyrics=skip_lyrics,
+            metadata_providers=metadata_providers,
+            skip_metadata_providers=skip_metadata_providers,
+            replaygain=replaygain,
+            skip_replaygain=skip_replaygain,
+            force_lastfm=force_lastfm,
+            force_mood=force_mood,
+            force_cover=force_cover,
+            force_lyrics=force_lyrics,
+            force_acoustid=force_acoustid,
+            force_identity=force_identity,
+            metadata_provider_sources=metadata_provider_sources,
+            allow_more_providers=allow_more_providers,
+            min_metadata_confidence=min_metadata_confidence,
+            cover_sources=cover_sources,
+            lyrics_sources=lyrics_sources,
+            min_cover_confidence=min_cover_confidence,
+            min_lyrics_confidence=min_lyrics_confidence,
+            bpm_range=bpm_range,
+            bpm_round=bpm_round,
+            feature_confidence=feature_confidence,
+            lastfm_min_count=lastfm_min_count,
+            lastfm_max_tags=lastfm_max_tags,
+            lastfm_debug=lastfm_debug,
+            lastfm_raw=lastfm_raw,
+            lastfm_no_fallback=lastfm_no_fallback,
+            verbose=verbose,
+            debug=debug,
+            advanced=advanced,
+            explicit_flags=explicit_flags or set(),
+            event_handler=on_event,
         )
-        stage_index = 1
-        _print_enrich_header(tracks, apply=apply, target=target if len(targets) > 1 else None)
-        release_date = ""
-        existing_mb_album_ids = mb_album_ids(tracks)
-        musicbrainz_plans = []
-        musicbrainz_output = ""
-        if not existing_mb_album_ids or force:
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "MusicBrainz"):
-                musicbrainz_plans = _apply_best_musicbrainz(target, tracks, apply=apply, force=force)
-            if musicbrainz_plans:
-                musicbrainz_output = summarize_plans(musicbrainz_plans, apply=apply, verbose=True)
-            _print_stage_done(stage_index, stage_total, "MusicBrainz", *_musicbrainz_status(musicbrainz_plans, len(tracks)))
-        elif len(existing_mb_album_ids) == 1:
-            if _musicbrainz_identity_complete(tracks):
-                _print_stage_done(stage_index, stage_total, "MusicBrainz", "SKIP", "IDs already present")
-            else:
-                with progress.spinner(f"[{stage_index}/{stage_total}]", "MusicBrainz"):
-                    musicbrainz_plans = _repair_partial_musicbrainz(tracks, next(iter(existing_mb_album_ids)), apply=apply)
-                if musicbrainz_plans:
-                    musicbrainz_output = summarize_partial_repair(musicbrainz_plans, apply=apply)
-                _print_stage_done(stage_index, stage_total, "MusicBrainz", *_musicbrainz_status(musicbrainz_plans, len(tracks), skipped=not musicbrainz_plans, existing_ids=True))
-        else:
-            _print_stage_start(stage_index, stage_total, "MusicBrainz")
-            _print_stage_done(stage_index, stage_total, "MusicBrainz", "REVIEW", "album id inconsistent; use --force")
-        _print_verbose(musicbrainz_output, verbose_output)
-        stage_index += 1
-        if options["run_metadata_providers"]:
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "Metadata providers"):
-                metadata_result = _run_metadata_provider_stage(
-                    target,
-                    apply=apply,
-                    force=force,
-                    providers=metadata_provider_sources,
-                    min_confidence=min_metadata_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")),
-                    verbose=verbose,
-                    debug=debug,
-                    config=config,
-                    allow_more_providers=allow_more_providers,
-                    exclude_musicbrainz=True,
-                    exclude_acoustid=options["run_acoustid_identify"] or options["skip_acoustid_identify"],
-                )
-            _print_stage_done(stage_index, stage_total, "Metadata providers", metadata_result[0], metadata_result[1])
-            _print_verbose(metadata_result[2], verbose_output)
-            stage_index += 1
-        if options["run_acoustid_identify"]:
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "AcoustID Identify"):
-                acoustid_result = _run_acoustid_identify_stage(target, apply=apply, force_acoustid=force_acoustid, force_identity=force_identity, min_confidence=min_metadata_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")), verbose=verbose, debug=debug, config=config)
-            _print_stage_done(stage_index, stage_total, "AcoustID Identify", acoustid_result[0], acoustid_result[1])
-            _print_verbose(acoustid_result[2], verbose_output)
-            stage_index += 1
-        run_bpm = options["run_bpm"]
-        repaired_fields_by_path = _musicbrainz_repaired_fields(musicbrainz_plans) if not apply else {}
-        cleanup_plans = []
-        if options["run_cleanup"]:
-            with progress.bar(f"[{stage_index}/{stage_total}]", "Cleanup", len(tracks)) as advance:
-                cleanup_plans = plan_cleanup(read_tracks(target), release_date=release_date)
-                apply_cleanup(cleanup_plans, apply=apply)
-                advance(len(tracks), len(tracks))
-            cleanup_output = summarize_cleanup(cleanup_plans, apply=apply, verbose=verbose_output, repaired_fields_by_path=repaired_fields_by_path)
-            _print_stage_done(stage_index, stage_total, "Cleanup", "OK", _cleanup_summary(cleanup_plans))
-            _print_verbose(cleanup_output, verbose_output)
-        else:
-            _print_stage_done(stage_index, stage_total, "Cleanup", "SKIP", "disabled by config")
-        stage_index += 1
-        if run_bpm:
-            with progress.bar(f"[{stage_index}/{stage_total}]", "BPM", len(tracks)) as advance:
-                code, output = analyze_bpm_path(target, apply=apply, force=force_bpm, bpm_range=bpm_range, bpm_round=bpm_round, progress=advance)
-            if code != 0:
-                _print_stage_done(stage_index, stage_total, "BPM", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            _print_stage_done(stage_index, stage_total, "BPM", *_bpm_status(output, len(tracks)))
-            _print_verbose(output, verbose_output)
-            stage_index += 1
-        if options["run_features"]:
-            with progress.bar(f"[{stage_index}/{stage_total}]", "Features", len(tracks)) as advance:
-                code, output = analyze_features_path(target, apply=apply, force=force_features, minimum_confidence=feature_confidence, bpm_range=bpm_range, bpm_round=bpm_round, progress=advance)
-            if code != 0:
-                _print_stage_done(stage_index, stage_total, "Features", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            _print_stage_done(stage_index, stage_total, "Features", *_features_status(output, len(tracks)))
-            _print_verbose(output, verbose_output)
-            stage_index += 1
-        if options["run_replaygain"]:
-            with progress.bar(f"[{stage_index}/{stage_total}]", "ReplayGain", len(tracks)) as advance:
-                code, output = replaygain_path(
-                    target,
-                    apply=apply,
-                    force=force,
-                    target_lufs=float(get_config_value(config, "audio", "target_lufs", -18.0)),
-                    write_track_gain=bool(get_config_value(config, "audio", "write_track_gain", True)),
-                    write_track_peak=bool(get_config_value(config, "audio", "write_track_peak", True)),
-                    write_album_gain=bool(get_config_value(config, "audio", "write_album_gain", True)),
-                    write_album_peak=bool(get_config_value(config, "audio", "write_album_peak", True)),
-                    write_loudness=bool(get_config_value(config, "audio", "write_loudness", True)),
-                    skip_existing=bool(get_config_value(config, "audio", "skip_existing", True)),
-                    verbose=verbose,
-                    debug=debug,
-                    progress=advance,
-                )
-            if code != 0:
-                _print_stage_done(stage_index, stage_total, "ReplayGain", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            if apply and (bool(get_config_value(config, "database", "auto_scan", False)) or database_path(config).exists()):
-                scan_library(config, target, apply=True)
-            _print_stage_done(stage_index, stage_total, "ReplayGain", *_replaygain_status(output, len(tracks)))
-            _print_verbose(output, verbose_output)
-            stage_index += 1
-        run_lastfm = options["run_lastfm"]
-        run_mood = options["run_mood"]
-        if run_lastfm:
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "Last.fm"):
-                code, output = analyze_lastfm_tags(target, apply=apply, force=force_lastfm, min_count=lastfm_min_count, max_tags=lastfm_max_tags, debug=lastfm_debug or debug, raw=lastfm_raw or debug, allow_fallback=not lastfm_no_fallback)
-            if code != 0:
-                _print_stage_done(stage_index, stage_total, "Last.fm", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            _print_stage_done(stage_index, stage_total, "Last.fm", *_lastfm_status(output, len(tracks)))
-            _print_verbose(output, verbose_output or lastfm_debug or lastfm_raw)
-            stage_index += 1
-        if run_mood:
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "Mood"):
-                code, output = analyze_mood_path(target, apply=apply, force=force_mood, with_lastfm=run_lastfm)
-            if code != 0:
-                _print_stage_done(stage_index, stage_total, "Mood", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            _print_stage_done(stage_index, stage_total, "Mood", *_mood_status(output, len(tracks)))
-            _print_verbose(output, verbose_output)
-            stage_index += 1
-        if options["run_cover"]:
-            resolved_cover_sources = cover_sources or list(get_config_value(config, "cover", "sources", ["local", "musicbrainz", "itunes", "deezer"]))
-            cover_tracks = read_tracks(target)
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "Cover"):
-                cover_result = process_cover(
-                    target,
-                    tracks=cover_tracks,
-                    apply=apply,
-                    force=force_cover,
-                    embed_cover=bool(get_config_value(config, "cover", "embed", True)),
-                    save_folder_cover=bool(get_config_value(config, "cover", "save_folder_cover", False)),
-                    folder_cover_filename=str(get_config_value(config, "cover", "filename", "cover")),
-                    sources=resolved_cover_sources,
-                    min_confidence=min_cover_confidence or str(get_config_value(config, "cover", "min_confidence", "medium")),
-                    prefer_front=bool(get_config_value(config, "cover", "prefer_front", True)),
-                    max_size_mb=int(get_config_value(config, "cover", "max_size_mb", 10)),
-                    debug=debug,
-                )
-            _print_stage_done(stage_index, stage_total, "Cover", *_cover_status(cover_result, apply=apply, force=force_cover))
-            stage_index += 1
-        if options["run_lyrics"]:
-            configured_lyrics_providers = get_config_value(config, "lyrics", "providers", None)
-            if isinstance(configured_lyrics_providers, list) and configured_lyrics_providers:
-                configured_lyrics_sources = list(configured_lyrics_providers) if any(provider in {"local", "embedded", "sidecar"} for provider in configured_lyrics_providers) else ["local", *[provider for provider in list(configured_lyrics_providers) if provider != "local"]]
-            else:
-                configured_lyrics_sources = list(get_config_value(config, "lyrics", "sources", ["lrclib"]))
-            resolved_lyrics_sources = lyrics_sources or configured_lyrics_sources
-            lyrics_tracks = read_tracks(target)
-            with progress.spinner(f"[{stage_index}/{stage_total}]", "Lyrics"):
-                lyrics_result = process_lyrics(
-                    lyrics_tracks,
-                    apply=apply,
-                    force=force_lyrics,
-                    embed_lyrics=bool(get_config_value(config, "lyrics", "embed_lyrics", get_config_value(config, "lyrics", "embed", True))),
-                    save_lrc=bool(get_config_value(config, "lyrics", "write_sidecar_lrc", get_config_value(config, "lyrics", "save_lrc", False))),
-                    save_txt=bool(get_config_value(config, "lyrics", "save_txt", False)),
-                    prefer_synced=bool(get_config_value(config, "lyrics", "prefer_synced", True)),
-                    allow_unsynced=bool(get_config_value(config, "lyrics", "allow_unsynced", True)),
-                    sources=resolved_lyrics_sources,
-                    min_confidence=min_lyrics_confidence or str(get_config_value(config, "lyrics", "min_confidence", "medium")),
-                    debug=debug,
-                    config=config,
-                )
-            lyrics_status, lyrics_summary = _lyrics_status(lyrics_result, apply=apply, force=force_lyrics)
-            _print_stage_done(stage_index, stage_total, "Lyrics", lyrics_status, lyrics_summary)
-            if lyrics_result.errors:
-                _print_verbose("\n".join(lyrics_result.errors), True)
-                return 1
-            stage_index += 1
-        if options["run_key"]:
-            key_index = stage_index
-            numbered_key = options["run_cover"] or options["run_lyrics"]
-            key_prefix = f"[{key_index}/{stage_total}]" if numbered_key else "[optional]"
-            with progress.spinner(key_prefix, "Key"):
-                code, output = analyze_key_path(target, apply=apply, force=force_key, config=config)
-            if code != 0:
-                _print_stage_done(key_index, stage_total, "Key", "FAIL", _first_line(output)) if numbered_key else _print_optional_done("Key", "FAIL", _first_line(output))
-                _print_verbose(output, True)
-                return code
-            if output.startswith("KEY: skipped"):
-                _print_stage_done(key_index, stage_total, "Key", "SKIP", "optional backend unavailable") if numbered_key else _print_optional_done("Key", "SKIP", "optional backend unavailable")
-            else:
-                _print_stage_done(key_index, stage_total, "Key", *_key_status(output, len(tracks))) if numbered_key else _print_optional_done("Key", *_key_status(output, len(tracks)))
-            _print_verbose(output, verbose_output)
-            if numbered_key:
-                stage_index += 1
-        result = audit_path(target)
-        warnings: list[str] = []
-        if result.tracks and not any(get_tag(track, "style") for track in result.tracks):
-            warnings.append("Style missing: no reliable style found from configured metadata sources")
-        if not apply and (full or analyze_bpm or analyze_key or analyze_features or run_lastfm or run_mood or options["run_metadata_providers"] or options["run_replaygain"] or options["run_cover"] or options["run_lyrics"]):
-            warnings.append("Audit reflects current files; planned dry-run changes are not applied")
-        if apply and run_lastfm and result.tracks and not any(get_tag(track, "lastfm_tags") for track in result.tracks):
-            warnings.append("Last.fm Tags missing: no Last.fm tags found")
-        if apply and run_mood and result.tracks and not any(get_tag(track, "mood") for track in result.tracks):
-            warnings.append("Mood missing: no high-confidence mood found")
-        if warnings:
-            print("\nWarnings:")
-            for warning in warnings:
-                print(f"- {warning}")
-        print("\n" + render_final_audit(result, verbose=verbose_output, advanced=advanced))
-    return 0
+    )
+    for context in list(active_contexts.values()):
+        context.__exit__(None, None, None)
+    return _render_enrich_result(result, stages_already_rendered=rendered_events)
+
+
+def _sync_enrich_service_dependencies() -> None:
+    enrich_service_module.read_tracks = read_tracks
+    enrich_service_module.target_kind = target_kind
+    enrich_service_module.mb_album_ids = mb_album_ids
+    enrich_service_module.get_tag = get_tag
+    enrich_service_module.get_release = get_release
+    enrich_service_module.search_releases = search_releases
+    enrich_service_module.hydrate_releases = hydrate_releases
+    enrich_service_module.rank_releases = rank_releases
+    enrich_service_module.plan_cleanup = plan_cleanup
+    enrich_service_module.apply_cleanup = apply_cleanup
+    enrich_service_module.summarize_cleanup = summarize_cleanup
+    enrich_service_module.audit_path = audit_path
+    enrich_service_module.analyze_bpm_path = analyze_bpm_path
+    enrich_service_module.analyze_key_path = analyze_key_path
+    enrich_service_module.analyze_features_path = analyze_features_path
+    enrich_service_module.analyze_lastfm_tags = analyze_lastfm_tags
+    enrich_service_module.analyze_mood_path = analyze_mood_path
+    enrich_service_module.replaygain_path = replaygain_path
+    enrich_service_module.database_path = database_path
+    enrich_service_module.scan_library = scan_library
+    enrich_service_module.process_cover = process_cover
+    enrich_service_module.process_lyrics = process_lyrics
+
+    def metadata_stage(target: Path, options: EnrichOptions, config: dict, selected: dict[str, bool]) -> tuple[str, str, str, int]:
+        status, summary, detail = _run_metadata_provider_stage(target, apply=options.apply, force=options.force, providers=options.metadata_provider_sources, min_confidence=options.min_metadata_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")), verbose=options.verbose, debug=options.debug, config=config, allow_more_providers=options.allow_more_providers, exclude_musicbrainz=True, exclude_acoustid=selected["run_acoustid_identify"] or selected["skip_acoustid_identify"])
+        return status, summary, detail, 0
+
+    def acoustid_stage(target: Path, options: EnrichOptions, config: dict) -> tuple[str, str, str, int]:
+        status, summary, detail = _run_acoustid_identify_stage(target, apply=options.apply, force_acoustid=options.force_acoustid, force_identity=options.force_identity, min_confidence=options.min_metadata_confidence or str(get_config_value(config, "metadata_providers", "min_confidence", "medium")), verbose=options.verbose, debug=options.debug, config=config)
+        if status == "FAIL" and summary == "no supported audio files found":
+            return "SKIP", summary, detail, 0
+        return status, summary, detail, 0
+
+    enrich_service_module._metadata_stage = metadata_stage
+    enrich_service_module._acoustid_stage = acoustid_stage
 
 
 def _print_enrich_header(tracks, apply: bool, target: Path | None = None) -> None:
@@ -2206,6 +2072,39 @@ def _print_enrich_header(tracks, apply: bool, target: Path | None = None) -> Non
     print(f"Files: {len(tracks)}")
     print(f"Mode: {'APPLY' if apply else 'DRY-RUN'}")
     print("")
+
+
+def _render_enrich_result(result, *, stages_already_rendered: bool = False) -> int:
+    if result.errors and not result.safe_details.get("targets"):
+        print(result.errors[0])
+        return 1
+    for target in result.details.get("targets", []):
+        if not stages_already_rendered:
+            target_name = target.get("target_name") or ""
+            if target_name:
+                print(f"Target: {target_name}")
+            album = target.get("album") or "unknown"
+            artist = target.get("artist") or "unknown"
+            if album != "unknown" or artist != "unknown":
+                print(f"Album: {artist} - {album}" if artist != "unknown" else f"Album: {album}")
+            print(f"Files: {target.get('files', 0)}")
+            print(f"Mode: {target.get('mode', 'DRY-RUN')}")
+            print("")
+            for stage in target.get("stages", []):
+                if stage.get("optional"):
+                    _print_optional_done(str(stage["name"]), str(stage["status"]), str(stage.get("summary") or ""))
+                else:
+                    _print_stage_done(int(stage["index"]), int(stage["total"]), str(stage["name"]), str(stage["status"]), str(stage.get("summary") or ""))
+                _print_verbose(str(stage.get("detail") or ""), bool(stage.get("detail")))
+        warnings = list(target.get("warnings") or [])
+        if warnings:
+            print("\nWarnings:")
+            for warning in warnings:
+                print(f"- {warning}")
+        final_audit = str(target.get("final_audit") or "")
+        if final_audit:
+            print("\n" + final_audit)
+    return 1 if result.status == Status.FAIL else 0
 
 
 class _Progress:

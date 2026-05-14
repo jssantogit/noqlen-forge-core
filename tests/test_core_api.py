@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from noqlen_forge.api import ConfigError, NoqlenForgeCore, NotImplementedWorkflowError
+from noqlen_forge.api import ConfigError, NoqlenForgeCore
 from noqlen_forge.importer import ImportResult
 from noqlen_forge.services.types import workflow_result_to_dict, workflow_result_to_json
 from noqlen_forge.workflow import Status, StepResult, WorkflowResult
@@ -76,12 +76,22 @@ def test_core_api_review_is_structured_service(monkeypatch: pytest.MonkeyPatch) 
     assert NoqlenForgeCore(config={}).review(review_args=["list"]) is expected
 
 
-def test_core_api_not_implemented_returns_structured_error() -> None:
+def test_core_api_enrich_uses_service_without_printing(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    expected = WorkflowResult(Status.OK, [StepResult(1, 1, "Cleanup", Status.OK)], command="enrich", details={"targets": []})
+    called = {"path": None}
+
+    def fake_service(options):
+        print("enrich noise")
+        called["path"] = options.path
+        return expected
+
+    monkeypatch.setattr("noqlen_forge.api.run_enrich_service", fake_service)
+
     result = NoqlenForgeCore(config={}).enrich("Album", full=True)
 
-    assert result.status == Status.FAIL
-    assert result.summary["error_type"] == NotImplementedWorkflowError.__name__
-    assert result.errors
+    assert result is expected
+    assert called["path"] == Path("Album")
+    assert capsys.readouterr().out == ""
 
 
 def test_core_api_does_not_print_stdout(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -164,10 +174,10 @@ def test_core_api_workflow_result_serializes_and_sanitizes(monkeypatch: pytest.M
 
 
 def test_core_api_json_serialization() -> None:
-    result = NoqlenForgeCore(config={}).enrich("Album")
+    result = WorkflowResult(Status.OK, [StepResult(1, 1, "Cleanup", Status.OK)], command="enrich")
     payload = json.loads(workflow_result_to_json(result))
 
-    assert payload["status"] == "FAIL"
+    assert payload["status"] == "OK"
     assert payload["workflow"] == "enrich"
 
 

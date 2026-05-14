@@ -19,6 +19,7 @@ from .services import (
     ApplyMBIDOptions,
     CandidatesOptions,
     CoverOptions,
+    EnrichOptions,
     ImportOptions,
     BatchOptions,
     CleanupOptions,
@@ -38,6 +39,7 @@ from .services import (
     run_apply_mbid_service,
     run_candidates_service,
     run_cover_service,
+    run_enrich_service,
     run_export_service,
     run_import_service,
     run_batch_service,
@@ -85,7 +87,7 @@ class NotImplementedWorkflowError(CoreAPIError):
 
 _WORKFLOWS: dict[str, dict[str, Any]] = {
     "audit": {"apply": False, "jobs": True, "implemented": True},
-    "enrich": {"apply": True, "jobs": True, "implemented": False},
+    "enrich": {"apply": True, "jobs": True, "implemented": True},
     "lyrics": {"apply": True, "jobs": True, "implemented": True},
     "cover": {"apply": True, "jobs": True, "implemented": True},
     "metadata": {"apply": True, "jobs": True, "implemented": True},
@@ -149,7 +151,7 @@ class NoqlenForgeCore:
 
     def enrich(self, path: str | Path, **options: Any) -> WorkflowResult:
         target = _path(path)
-        return self._not_implemented("enrich", target, "The enrich workflow still needs a silent service adapter before Core API execution.", options=options)
+        return self._run("enrich", target, options, lambda opts: run_enrich_service(_option(EnrichOptions, path=target, config=self.config, **opts)))
 
     def lyrics(self, path: str | Path, **options: Any) -> WorkflowResult:
         target = _path(path)

@@ -2349,7 +2349,7 @@ def _core_api_check(lab: Path, config: dict, album_path: Path, single: Path, rep
     enrich_dry = core.enrich(album_path, full=True, apply=False)
     import_dry = core.import_music(lab / "Incoming", library=lab / "Library", apply=False)
     after_single = _file_fingerprints(single)
-    if before_single != after_single or lyrics_dry.mode != "dry-run" or enrich_dry.status != Status.FAIL or import_dry.mode != "dry-run":
+    if before_single != after_single or lyrics_dry.mode != "dry-run" or enrich_dry.mode != "dry-run" or enrich_dry.status == Status.FAIL or import_dry.mode != "dry-run":
         raise LabFailure("Core API dry-run", "core dry-run workflows", "dry-run changed files or returned unexpected mode")
 
     outside = core.lyrics(lab.parent / "outside-core-api", apply=True, sources=["local"])
