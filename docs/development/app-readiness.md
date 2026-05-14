@@ -38,59 +38,75 @@ Future controllers should call services or `NoqlenForgeCore` directly:
 
 - `noqlen_forge.api.NoqlenForgeCore` provides a stable internal API class and a `capabilities()` manifest.
 - `WorkflowResult`, `StepResult`, `ChangePlan`, `PlannedChange`, `AppliedChange`, `ApplyResult`, and `Artifact` define a reusable result vocabulary.
-- `noqlen_forge/services` contains argparse-free options dataclasses and service entry points for several workflows.
+- `noqlen_forge/services` contains argparse-free options dataclasses and service entry points for most user-facing workflows.
 - `SafetyContext` carries dry-run/apply protection across service callers and blocks automated apply outside MusicLab.
 - `workflow_result_to_dict()` and `workflow_result_to_json()` provide JSON serialization with redaction for sensitive keys and long values.
 - Jobs store sanitized workflow results, steps, events, and progress in SQLite without requiring a background daemon.
 - MusicLab, fakes, and fixtures give future service migrations a safe validation path.
-- Report/export and playlist export services already model explicit output artifacts where applicable.
+- Enrich now has a non-interactive service boundary and Core API method; medium-confidence apply requires explicit confirmation options outside the CLI.
+- Metadata, review, maintenance, library, provider/audio, Navidrome, report/export, playlist export, and job operations have service boundaries, although many still wrap legacy text or object results.
+- Navidrome ratings and playlist services accept injectable clients and have fake-client tests for safe service/Core API execution.
 
 ## Workflow Readiness Matrix
 
 | Workflow area | Service-backed | Core API exposed | Structured result | Terminal coupling | App-readiness | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `config` | No | No | No | Medium | Partial | Add small read-only service methods for config path/show/init planning before exposing through Core API. |
-| `db` | Partial | No | Partial | Medium | Partial | Wrap `db status`, `query`, `explain`, and `scan` in services with explicit DB artifacts/counts. |
+| `config` | No | No | No | Medium | Not ready | Add read-only config path/show service methods and an explicit init/write plan before Core API exposure. |
+| `db` | Partial | No | Partial | Medium | Partial | Wrap `db status`, `scan`, `query`, and `explain` in explicit DB services with structured counts, SQL-safe summaries, artifacts, and Core API methods. |
 | `audit` | Yes | Yes | Yes | Low | Ready | Keep CLI rendering separate and expand result details only when needed by clients. |
-| `enrich` | No | Partial | Partial | High | Not ready | Document the service contract first; then migrate stages behind one adapter without changing CLI behavior. |
-| `import` | Yes | Yes | Partial | Medium | Partial | Replace text-output wrapping with structured plan, stage, artifact, and apply details. |
-| `organize` | Yes | Yes | Partial | Medium | Partial | Promote organize plans and applied file operations into `ChangePlan`/`Artifact` fields. |
-| `query`, `report`, `export` | Yes | Partial | Partial | Medium | Partial | Add Core API methods for query/report variants and reduce reliance on `output_text`. |
-| `review` | Yes | Yes | Partial | Medium | Partial | Continue replacing wrapped review text with structured decision lists, plans, and applied changes. |
+| `enrich` | Yes | Yes | Partial | Medium | Partial | Continue replacing stage text summaries with structured planned/applied changes, stage artifacts, warnings, and progress events. |
+| `import` | Yes | Yes | Partial | Medium | Partial | Replace remaining object/text wrapping with structured stage plans, enrichment sub-results, artifacts, and apply details. |
+| `organize` | Yes | Yes | Partial | Low | Partial | Add applied file-operation details and artifacts to the existing planned-change/item summaries. |
+| `query`, `report`, `export` | Yes | Partial | Partial | Medium | Partial | Add Core API methods for query and report variants; reduce reliance on `output_text` except where stdout format is the contract. |
+| `review` | Yes | Yes | Partial | Medium | Partial | Replace wrapped review text with structured decision lists, selected actions, plans, and applied changes. |
 | `maintain sync/repair/rewrite` | Yes | Yes | Partial | Medium | Partial | Convert wrapped text results into structured plans, conflicts, warnings, and applied changes. |
 | `metadata`, `candidates`, `apply-mbid` | Yes | Yes | Partial | Medium | Partial | Expand structured provider decisions and write plans while keeping raw provider payloads out of results. |
 | `cover` | Yes | Yes | Partial | Medium | Partial | Move cover decisions, selected source, confidence, and output files into structured fields. |
 | `lyrics` | Yes | Yes | Partial | Medium | Partial | Keep full lyrics out of results; expose safe provider decisions, artifacts, and redacted summaries. |
-| `replaygain` and audio analysis | Partial | Partial | Partial | Medium | Partial | Add services for BPM, key, mood, and feature analysis; reduce direct CLI calls to analysis modules. |
-| `playlist` | Partial | Partial | Partial | Medium | Partial | Extend service coverage beyond export to create/list/show/refresh/delete/rename. |
-| Navidrome ratings/playlists | No | Partial | Partial | High | Not ready | Add fake-client-backed services before Core API execution or controller reuse. |
-| `jobs` | Partial | Partial | Yes | Medium | Partial | Wrap CLI job list/status/cancel/resume/prune rendering in service/Core API methods consistently. |
+| `replaygain` and audio analysis | Partial | Partial | Partial | Medium | Partial | ReplayGain has service/Core API coverage; add services for BPM, key, mood, and feature analysis and reduce direct CLI calls to analysis modules. |
+| `playlist` | Partial | Partial | Partial | Medium | Partial | Playlist export is service/Core API backed; extend service coverage to smart create/list/show/refresh/delete/rename. |
+| Navidrome ratings/playlists | Yes | Yes | Partial | Low | Partial | Keep fake-client coverage, then replace JSON/text parsing wrappers with direct structured payloads and apply safety summaries. |
+| `jobs` | Yes | Yes | Yes | Medium | Partial | Keep storage structured, but align CLI custom rendering and job workflow parity with service/Core API result rendering. |
 | `dev` and MusicLab | Partial | No | Partial | High | Not ready for app control | Keep as developer tooling; reuse MusicLab patterns for validation, not as end-user app workflows. |
 
-## App-Readiness Blockers
+## Blocker Status
 
-- `cli.py` still owns extensive direct `print()` rendering, progress lines, and command branching. This is acceptable for the CLI but should not leak into future controllers.
-- `apply-mbid` keeps medium-confidence `input()` confirmation in the CLI adapter only; service and Core API callers must pass an explicit confirmation option for apply-like behavior.
-- Several service adapters call legacy functions that return `(code, output)` or result objects with text output, then store `output_text` in `WorkflowResult.details`.
-- Some workflows are service-backed but not fully structured: they expose status and summary, but planned changes, applied changes, artifacts, provider decisions, or conflicts remain embedded in text.
-- `NoqlenForgeCore` intentionally returns `NotImplementedWorkflowError` results for workflows without silent adapters, including `enrich` and Navidrome rating workflows.
-- Top-level CLI progress and stage rendering for enrich-style flows assumes terminal output. Future clients need event/progress data, not terminal lines.
-- Provider-heavy workflows need clearer fake-client and fake-provider boundaries before they are safe to expose to future controllers.
-- Some job operations are structured at the storage layer but still rendered directly by CLI handlers rather than consistently flowing through services.
-- Safety is strongest where services build `OperationContext`/`SafetyContext`; CLI-only paths must keep equivalent guardrails until migrated.
+### Resolved Blockers
+
+- `enrich` now has an app-ready service/Core API boundary instead of being CLI-only.
+- Medium-confidence enrich apply no longer silently proceeds and no longer depends on service-side interaction; service/Core API callers must pass an explicit confirmation option.
+- Navidrome ratings and playlists now have service/Core API methods and injectable-client tests, so controllers do not need to scrape CLI output to run those workflows.
+- Metadata/review, maintenance/library, provider/audio, and job workflows have broad service/Core API coverage after the recent refactors.
+
+### Remaining Blockers Before Flux Planning
+
+- `config` has no service/Core API boundary yet.
+- DB workflows are still mostly direct CLI/module paths; query has a report service wrapper, but DB status, scan, and explain need explicit services and Core API methods.
+- Structured result coverage is broad but mixed. Several services still adapt legacy `(code, output)` functions or result objects and keep important details in `output_text`.
+- Query/report variants and playlist operations beyond export still lack full Core API parity.
+- Audio analysis beyond ReplayGain still runs mostly through direct analysis modules instead of dedicated service/Core API methods.
+
+### Non-Blocking Follow-Ups
+
+- Enrich still needs richer structured stage results, planned/applied changes, artifacts, and reusable progress/event details, but it is no longer blocked by the medium-confidence confirmation issue.
+- Navidrome services are safe to call with fake clients and structured summaries, but they still parse JSON/text output from lower-level functions rather than building results directly.
+- Jobs are structured at the storage/service/Core API layer, but CLI job rendering remains custom and should be normalized.
+- Import, organize, review, maintenance, cover, lyrics, and metadata workflows should continue replacing text wrappers with structured decisions, warnings, conflicts, artifacts, and applied changes.
+- CLI rendering still contains direct `print()` and progress handling. This is acceptable for the terminal adapter as long as service/Core API callers remain silent and structured.
+- Safety remains strongest where services build `OperationContext`/`SafetyContext`; any remaining CLI-only apply path needs equivalent guardrails until migrated.
 
 ## Practical Migration Order
 
 Do not rewrite everything at once. Prefer small, tested service adapters that preserve the CLI contract.
 
 1. Document service/Core API gaps and keep this audit current as migrations land.
-2. Normalize smaller adapters first: config, DB status/query/explain, playlist non-write views, jobs list/status, and report variants.
-3. Improve structured output coverage for existing services by filling `planned_changes`, `applied_changes`, `artifacts`, `counts`, `warnings`, and `safe_details` instead of relying on `output_text`.
-4. Isolate terminal rendering in CLI-specific renderers and keep machine-readable stdout contracts unchanged.
-5. Replace interactive confirmation with explicit options at the service boundary while preserving CLI compatibility.
-6. Add fake-client-backed service contracts for Navidrome and provider-heavy flows before exposing them through Core API execution.
-7. Document the enrich service contract before refactoring enrich; avoid starting with the largest enrich rewrite.
-8. Only after the smaller contracts are stable, address enrich and future app-controller integration points.
+2. Add small service/Core API adapters for config and DB status/scan/explain.
+3. Add Core API parity for query/report variants and non-export playlist operations.
+4. Improve structured output coverage for existing services by filling `planned_changes`, `applied_changes`, `artifacts`, `counts`, `warnings`, and `safe_details` instead of relying on `output_text`.
+5. Replace legacy text wrappers incrementally while preserving existing CLI stdout contracts.
+6. Keep interactive confirmation in CLI adapters only; service/Core API boundaries must require explicit options or decisions.
+7. Normalize CLI job rendering around service/Core API results.
+8. Add dedicated service/Core API coverage for BPM, key, mood, and feature analysis.
 
 Runtime behavior should remain unchanged until each migration has direct service tests, CLI/service parity tests, and MusicLab/fake validation where applicable.
 
