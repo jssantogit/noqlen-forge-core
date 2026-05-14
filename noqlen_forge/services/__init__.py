@@ -8,6 +8,7 @@ from .library_maintenance_service import BatchOptions, CleanupOptions, run_batch
 from .lyrics_service import LyricsOptions, run_lyrics_service
 from .maintenance_service import RepairOptions, RewriteOptions, SyncOptions, run_repair_service, run_rewrite_service, run_sync_service
 from .metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
+from .navidrome_service import NavidromePlaylistsOptions, NavidromeRatingsOptions, run_navidrome_playlists_service, run_navidrome_ratings_service
 from .playlist_service import PlaylistExportOptions, run_playlist_export_service
 from .report_service import DuplicatesOptions, ExportOptions, MissingFilesOptions, MissingOptions, QueryOptions, UntrackedOptions, build_duplicates_options, build_export_options, build_missing_files_options, build_missing_options, build_untracked_options, run_duplicates_service, run_export_service, run_missing_files_service, run_missing_service, run_query_service, run_untracked_service
 from .types import sanitize_result_for_json, sanitize_value_for_output, workflow_result_from_dict, workflow_result_to_dict, workflow_result_to_json
@@ -26,6 +27,8 @@ __all__ = [
     "MissingFilesOptions",
     "MissingOptions",
     "MetadataOptions",
+    "NavidromePlaylistsOptions",
+    "NavidromeRatingsOptions",
     "OrganizeOptions",
     "PlaylistExportOptions",
     "QueryOptions",
@@ -71,6 +74,8 @@ __all__ = [
     "run_apply_mbid_service",
     "run_candidates_service",
     "run_metadata_service",
+    "run_navidrome_playlists_service",
+    "run_navidrome_ratings_service",
     "run_playlist_export_service",
     "run_review_service",
     "sanitize_result_for_json",

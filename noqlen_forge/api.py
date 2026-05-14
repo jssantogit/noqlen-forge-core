@@ -24,6 +24,8 @@ from .services import (
     CleanupOptions,
     LyricsOptions,
     MetadataOptions,
+    NavidromePlaylistsOptions,
+    NavidromeRatingsOptions,
     OrganizeOptions,
     PlaylistExportOptions,
     RepairOptions,
@@ -42,6 +44,8 @@ from .services import (
     run_cleanup_service,
     run_lyrics_service,
     run_metadata_service,
+    run_navidrome_playlists_service,
+    run_navidrome_ratings_service,
     run_organize_service,
     run_playlist_export_service,
     run_repair_service,
@@ -98,9 +102,14 @@ _WORKFLOWS: dict[str, dict[str, Any]] = {
     "repair": {"apply": True, "jobs": True, "implemented": True},
     "export": {"apply": False, "jobs": True, "implemented": True},
     "playlist_export": {"apply": False, "jobs": True, "implemented": True},
-    "navidrome_ratings_backup": {"apply": True, "jobs": False, "implemented": False},
-    "navidrome_ratings_diff": {"apply": False, "jobs": False, "implemented": False},
-    "navidrome_ratings_restore": {"apply": True, "jobs": False, "implemented": False, "dangerous": True},
+    "navidrome_ratings_backup": {"apply": True, "jobs": False, "implemented": True},
+    "navidrome_ratings_diff": {"apply": False, "jobs": False, "implemented": True},
+    "navidrome_ratings_restore": {"apply": True, "jobs": False, "implemented": True, "dangerous": True},
+    "navidrome_playlists_list": {"apply": False, "jobs": False, "implemented": True},
+    "navidrome_playlists_backup": {"apply": True, "jobs": False, "implemented": True},
+    "navidrome_playlists_diff": {"apply": False, "jobs": False, "implemented": True},
+    "navidrome_playlists_push": {"apply": True, "jobs": False, "implemented": True},
+    "navidrome_playlists_push_smart": {"apply": True, "jobs": False, "implemented": True},
 }
 
 
@@ -209,13 +218,28 @@ class NoqlenForgeCore:
         return self._run("playlist_export", None, options, lambda opts: run_playlist_export_service(_option(PlaylistExportOptions, config=self.config, name=query, **opts)))
 
     def navidrome_ratings_backup(self, **options: Any) -> WorkflowResult:
-        return self._not_implemented("navidrome_ratings_backup", None, "Navidrome backup needs a fake-client Core API contract before execution.", options=options)
+        return self._run("navidrome_ratings_backup", None, options, lambda opts: run_navidrome_ratings_service(_option(NavidromeRatingsOptions, config=self.config, command="backup", **opts)))
 
     def navidrome_ratings_diff(self, **options: Any) -> WorkflowResult:
-        return self._not_implemented("navidrome_ratings_diff", None, "Navidrome diff needs a fake-client Core API contract before execution.", options=options)
+        return self._run("navidrome_ratings_diff", None, options, lambda opts: run_navidrome_ratings_service(_option(NavidromeRatingsOptions, config=self.config, command="diff", **opts)))
 
     def navidrome_ratings_restore(self, **options: Any) -> WorkflowResult:
-        return self._not_implemented("navidrome_ratings_restore", None, "Navidrome restore needs a fake-client Core API contract before execution.", options=options)
+        return self._run("navidrome_ratings_restore", None, options, lambda opts: run_navidrome_ratings_service(_option(NavidromeRatingsOptions, config=self.config, command="restore", **opts)))
+
+    def navidrome_playlists_list(self, **options: Any) -> WorkflowResult:
+        return self._run("navidrome_playlists_list", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="list", **opts)))
+
+    def navidrome_playlists_backup(self, **options: Any) -> WorkflowResult:
+        return self._run("navidrome_playlists_backup", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="backup", **opts)))
+
+    def navidrome_playlists_diff(self, query: str, **options: Any) -> WorkflowResult:
+        return self._run("navidrome_playlists_diff", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="diff", query=query, **opts)))
+
+    def navidrome_playlists_push(self, query: str, **options: Any) -> WorkflowResult:
+        return self._run("navidrome_playlists_push", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="push", query=query, **opts)))
+
+    def navidrome_playlists_push_smart(self, name: str, **options: Any) -> WorkflowResult:
+        return self._run("navidrome_playlists_push_smart", None, options, lambda opts: run_navidrome_playlists_service(_option(NavidromePlaylistsOptions, config=self.config, command="push-smart", smart_name=name, **opts)))
 
     def create_job(self, kind: str, target: str | Path | None = None, options: dict[str, Any] | None = None, **job_options: Any) -> WorkflowResult:
         target_text = "" if target is None else str(_path(target))

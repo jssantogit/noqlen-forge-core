@@ -4,8 +4,10 @@ from pathlib import Path
 import pytest
 
 from noqlen_forge import cli
+from noqlen_forge.api import NoqlenForgeCore
 from noqlen_forge.audio import Track
 from noqlen_forge.audit import AuditResult, render_audit
+from noqlen_forge.navidrome import NavidromeConfig, RatingItem
 from noqlen_forge.safety import SafetyError
 from noqlen_forge.services.cli_helpers import exit_code_from_status, parse_fields, render_structured_service_result
 from noqlen_forge.services.core_service import CoverOptions, run_cover_service
@@ -15,6 +17,7 @@ from noqlen_forge.services.maintenance_service import SyncOptions, run_sync_serv
 from noqlen_forge.services.audit_service import AuditOptions, audit_result_from_workflow, run_audit_service
 from noqlen_forge.services.lyrics_service import LyricsOptions, run_lyrics_service
 from noqlen_forge.services.metadata_service import ApplyMBIDOptions, CandidatesOptions, MetadataOptions, ReviewOptions, run_apply_mbid_service, run_candidates_service, run_metadata_service, run_review_service
+from noqlen_forge.services.navidrome_service import NavidromePlaylistsOptions, NavidromeRatingsOptions, run_navidrome_playlists_service, run_navidrome_ratings_service
 from noqlen_forge.services.playlist_service import PlaylistExportOptions, render_playlist_export_result, run_playlist_export_service
 from noqlen_forge.services.report_service import ExportOptions, QueryOptions, build_duplicates_options, build_export_options, build_missing_options, render_report_result, run_export_service, run_query_service
 from noqlen_forge.services.result_helpers import finish_object_result, finish_text_result, first_line, status_from_text_output
@@ -24,6 +27,51 @@ from noqlen_forge.workflow import AppliedChange, Artifact, PlannedChange, Status
 from test_export import _config, _seed
 from test_metadata_providers import tracks
 from test_review import _seed as _seed_review
+
+
+class FakeNavidromeClient:
+    def __init__(self, items: list[RatingItem] | None = None, playlists: list[dict] | None = None) -> None:
+        self.config = NavidromeConfig(base_url="http://127.0.0.1:4533", username="tester")
+        self.items = items or []
+        self.playlists = playlists or []
+        self.write_calls: list[tuple] = []
+
+    def ping(self):
+        return {"subsonic-response": {"status": "ok"}}
+
+    def iter_rating_items(self):
+        return list(self.items)
+
+    def get_playlists(self):
+        rows = [{"id": item["id"], "name": item["name"], "songCount": len(item.get("song_ids", []))} for item in self.playlists]
+        return {"subsonic-response": {"status": "ok", "playlists": {"playlist": rows}}}
+
+    def get_playlist(self, playlist_id):
+        playlist = next((item for item in self.playlists if item["id"] == playlist_id), {"id": playlist_id, "name": playlist_id, "song_ids": []})
+        entries = [{"id": song_id, "title": "Song", "artist": "Artist"} for song_id in playlist.get("song_ids", [])]
+        return {"subsonic-response": {"status": "ok", "playlist": {"id": playlist_id, "name": playlist["name"], "entry": entries}}}
+
+
+def _fake_lyrics_stats(path: Path, *, status: str = "OK"):
+    return type(
+        "Stats",
+        (),
+        {
+            "status": status,
+            "total": 1,
+            "per_file": {},
+            "provider_attempts": {},
+            "embedded_existing": 0,
+            "embedded_written": 0,
+            "sidecar_written": 0,
+            "missing": 0,
+            "skipped": 0,
+            "conflicts": [],
+            "warnings": [],
+            "selection_warnings": [],
+            "errors": [],
+        },
+    )()
 
 
 def test_service_options_are_argparse_free() -> None:
@@ -133,6 +181,41 @@ def test_playlist_cli_uses_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert capsys.readouterr().out == "#EXTM3U\n\n"
 
 
+def test_navidrome_ratings_service_uses_fake_client_without_writes(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    client = FakeNavidromeClient([RatingItem(navidrome_id="n1", title="Song", artist="Artist", rating=5, starred=True)])
+
+    result = run_navidrome_ratings_service(NavidromeRatingsOptions(config=config, command="backup", client=client))
+
+    assert result.status == Status.WARN
+    assert result.summary["total_items"] == 1
+    assert result.safe_details["result"] == {}
+    assert client.write_calls == []
+
+
+def test_navidrome_playlists_service_returns_json_summary(tmp_path: Path) -> None:
+    config = _config(tmp_path / "library.db")
+    client = FakeNavidromeClient(playlists=[{"id": "p1", "name": "Favorites", "song_ids": ["n1"]}])
+
+    result = run_navidrome_playlists_service(NavidromePlaylistsOptions(config=config, command="list", client=client))
+
+    assert result.status == Status.OK
+    assert result.summary["count"] == 1
+    assert result.safe_details["result"]["playlists"][0]["name"] == "Favorites"
+    assert client.write_calls == []
+
+
+def test_core_api_calls_navidrome_service_silently(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = _config(tmp_path / "library.db")
+    client = FakeNavidromeClient(playlists=[{"id": "p1", "name": "Favorites"}])
+
+    result = NoqlenForgeCore(config=config).navidrome_playlists_list(client=client)
+
+    assert result.status == Status.OK
+    assert result.summary["count"] == 1
+    assert capsys.readouterr().out == ""
+
+
 def test_workflow_result_json_redacts_sensitive_details() -> None:
     result = WorkflowResult(Status.OK, [StepResult(1, 1, "Read", Status.OK, "done")], command="test", details={"api_key": "secret-value", "lyrics": "full lyrics should not leak", "fingerprint": "abc" * 300, "safe": "value"})
 
@@ -187,11 +270,13 @@ def test_sanitize_value_redacts_secret_markers() -> None:
 def test_lyrics_service_dry_run_delegates_without_apply(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls = {"apply": None}
 
-    def fake_lyrics_path(path: Path, **kwargs):
+    def fake_process_lyrics(_tracks, **kwargs):
         calls["apply"] = kwargs["apply"]
-        return 0, "Lyrics\nMode: DRY-RUN\nStatus: OK"
+        return _fake_lyrics_stats(tmp_path / "song.mp3")
 
-    monkeypatch.setattr("noqlen_forge.services.lyrics_service.lyrics_path", fake_lyrics_path)
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.read_tracks", lambda path: [Track(path=path, format="mp3")])
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.process_lyrics", fake_process_lyrics)
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.render_lyrics_result", lambda *args, **kwargs: "Lyrics\nMode: DRY-RUN\nStatus: OK")
 
     result = run_lyrics_service(LyricsOptions(path=tmp_path / "song.mp3", apply=False))
 
@@ -200,10 +285,9 @@ def test_lyrics_service_dry_run_delegates_without_apply(monkeypatch: pytest.Monk
 
 
 def test_lyrics_cli_json_is_structured_and_sanitized(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    def fake_lyrics_path(path: Path, **kwargs):
-        return 0, "Lyrics\nThese are complete song words that should stay in text output only\nStatus: OK"
-
-    monkeypatch.setattr("noqlen_forge.services.lyrics_service.lyrics_path", fake_lyrics_path)
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.read_tracks", lambda path: [Track(path=path, format="mp3")])
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.process_lyrics", lambda *args, **kwargs: _fake_lyrics_stats(tmp_path / "song.mp3"))
+    monkeypatch.setattr("noqlen_forge.services.lyrics_service.render_lyrics_result", lambda *args, **kwargs: "Lyrics\nThese are complete song words that should stay in text output only\nStatus: OK")
 
     assert cli.main(["lyrics", str(tmp_path / "song.mp3"), "--format", "json"]) == 0
 
